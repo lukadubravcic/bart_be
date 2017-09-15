@@ -1,26 +1,56 @@
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 const bodyParser = require('body-parser');
 router.use(bodyParser.urlencoded({ extended: true }));
 
 const User = require('../models/User');
 
-router.post('/', (req, res) => {
-    User.create({
-        name: req.body.name,
-        email: req.body.email,
-        password: req.body.password
-    }, (err, user) => {
-        if (err) return res.status(500).send("There was a problem adding the information to the database");
-        res.status(200).send(user);
+
+router.post('/login', (req, res) => {
+
+    console.log(req.body);
+    User.findOne({ email: req.body.email }, (err, user) => {
+        if (err) return res.status(500).send({ message: err });
+        if (!user) {
+            return res.status(404).json({ message: "User not found." });
+        } else if (user) {
+            if (!user.comparePassword(req.body.password)) {
+                return res.status(401).json({ message: "Authentication failed. Wrong password." });
+            } else {
+                return res.json({ token: jwt.sign({ email: user.email, name: user.name, _id: user.id }, 'salty'), username: user.name });
+            }
+        }
+    });
+});
+
+router.post('/register', (req, res) => {
+    console.log(req.body);
+    let newUser = new User(req.body);
+    newUser.hash_password = bcrypt.hashSync(req.body.password, 10);
+    newUser.save((err, user) => {
+        if (err) {
+            if (err.code === 11000) {
+                return res.status(400).send('User with that email exists.');
+            }
+            return res.status(400).send({
+                message: err
+            });
+        } else {
+            user.hash_password = undefined;
+            return res.json(user);
+        }
     });
 });
 
 router.get('/', (req, res) => {
-    User.find({}, (err, users) => {
-        if (err) return res.status(500).send("There was a problem finding the users.");
-        res.status(200).send(users);
-    });
+
+    const user = req.user;
+    console.log(req.user);
+    if (user !== undefined) {
+        res.json(user)
+    }
 });
 
 router.get('/:id', (req, res) => {
