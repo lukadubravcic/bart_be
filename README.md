@@ -1,4 +1,4 @@
-## API point for Bart
+## API points for Bart
 
 ## User endpoints:
 
