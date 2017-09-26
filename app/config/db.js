@@ -1,5 +1,5 @@
 const credentials = require('./config');
-const url = 'mongodb://' + credentials.name + ':' + credentials.pwd + '@ds133044.mlab.com:33044/notes';
+const url = 'mongodb://' + credentials.name + ':' + credentials.pwd + '@ds151554.mlab.com:51554/bart';
 
 const mongoose = require('mongoose');
 mongoose.connect(url);

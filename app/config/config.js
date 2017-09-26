@@ -1,4 +1,4 @@
 module.exports = {
     name: "Dubra",
-    pwd: "12345ld"
+    pwd: "12345"
 }

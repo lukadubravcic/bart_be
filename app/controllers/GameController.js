@@ -1,15 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 const bodyParser = require('body-parser');
 router.use(bodyParser.urlencoded({ extended: true }));
 
-const User = require('../models/User');
+const Punishment = require('../models/Punishment');
+
+router.get('/', (req, res) => {
+
+    // posalji punishment s najskorijim rokom ili ako user nije logiran, default punishment
+    if (req.user) {
 
 
-router.post('/login', (req, res) => {
-
-
+    }
 
 })
+
+module.exports = router;

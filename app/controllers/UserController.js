@@ -19,7 +19,7 @@ router.post('/login', (req, res) => {
             if (!user.comparePassword(req.body.password)) {
                 return res.status(401).json({ message: "Authentication failed. Wrong password." });
             } else {
-                return res.json({ token: jwt.sign({ email: user.email, name: user.name, _id: user.id }, 'salty'), username: user.name });
+                return res.json({ token: jwt.sign({ email: user.email, name: user.name, _id: user.id }, 'salty'), username: user.name, _id: user._id });
             }
         }
     });
@@ -49,7 +49,10 @@ router.get('/', (req, res) => {
     const user = req.user;
     console.log(req.user);
     if (user !== undefined) {
-        res.json(user)
+        res.json(user);
+        console.log(res.body);
+    } else {
+        res.status(400).send('Authentication failed.');
     }
 });
 

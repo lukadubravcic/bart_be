@@ -1,4 +1,4 @@
-var User = require('./app/models/User'),
+const User = require('./app/models/User'),
     jwt = require('jsonwebtoken'),
     cors = require('cors');
 
@@ -7,6 +7,7 @@ const app = express();
 const db = require('./app/config/db');
 
 const UserController = require('./app/controllers/UserController');
+const GameController = require('./app/controllers/GameController');
 
 app.use(cors());
 
@@ -22,7 +23,10 @@ app.use((req, res, next) => {
         next();
     }
 });
+
 app.use('/users', UserController);
+
+app.use('/punishment', GameController);
 // http://expressjs.com/en/guide/using-middleware.html - dodati da se prije izvrsavanja određenih ruta provjeri login status:
 /* loginRequired = (req, res, next) =>{
     if (req.user) next();
