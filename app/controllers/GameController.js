@@ -13,6 +13,13 @@ router.get('/', (req, res) => {
 
     }
 
-})
+});
+
+router.post('/create', (req, res) => {
+    console.log(req.body.howManyTimes)
+    res.json(req.body.howManyTimes);
+});
+
+
 
 module.exports = router;
