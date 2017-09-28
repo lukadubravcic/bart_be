@@ -20,10 +20,17 @@ const PunishmentSchema = new Schema({
         type: Date,
         default: Date.now
     },
-    accepted: { type: Boolean },
+    accepted: {
+        type: Date,
+        default: null
+    },
     tris: {},
     done: { type: Date },
     failed: { type: Date },
     given_up: { type: Date },
     total_time_spent: { type: Number }
 })
+
+mongoose.model('Punishment', PunishmentSchema);
+
+module.exports = mongoose.model('Punishment');

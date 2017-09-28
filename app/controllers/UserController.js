@@ -47,10 +47,20 @@ router.post('/register', (req, res) => {
 router.get('/', (req, res) => {
 
     const user = req.user;
-    console.log(req.user);
+
     if (user !== undefined) {
-        res.json(user);
-        console.log(res.body);
+        User.findById(req.user._id, (err, user) => {
+            if (err) return res.status(500).send('Error fetching user data.');
+            if (!user) return res.status(400).send("No user found.");
+            else {
+                // posalji user data (napravljen je refresh)
+                res.send({
+                    _id: user._id,
+                    email: user.email,
+                    username: user.username
+                });
+            }
+        });
     } else {
         res.status(400).send('Authentication failed.');
     }
