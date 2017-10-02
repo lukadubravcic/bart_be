@@ -13,7 +13,7 @@ const UserSchema = new Schema({
         unique: true,
         trim: true,
         required: true,
-        index: { unique: true } 
+        index: { unique: true }
     },
     hash_password: {
         type: String,
@@ -23,7 +23,7 @@ const UserSchema = new Schema({
         type: Date,
         default: Date.now
     }
-}, {strict: true});
+}, { strict: true });
 
 UserSchema.methods.comparePassword = function (password) {
     return bcrypt.compareSync(password, this.hash_password);

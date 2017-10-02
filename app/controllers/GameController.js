@@ -27,7 +27,7 @@ router.get('/mail', (req, res) => {
         from: 'bart@barted.com',
         to: 'lukadubravcic@yahoo.com',
         subject: 'piknik',
-        text: 'Mail da se sjetis odigrat jos koju tekmu, lp',
+        text: 'Nekakav testni mail, lp',
     }, function (err, reply) {
         console.log(err && err.stack);
         console.dir(reply);
@@ -40,10 +40,53 @@ router.get('/mail', (req, res) => {
 
 router.get('/accepted', (req, res) => {
 
-    Punishment.find({ "fk_user_email_taking_punishment": req.user.email, "accepted": { $exists: true, $ne: null} },
+    let data = [];
+    let punishments = [];
+    function createPunishmentsData(punishment) {
+        punishments.push(punishment);
+        //console.log(data)
+    }
+
+
+    let getUsername = () => {
+        User.findById(punishment.fk_user_uid_ordering_punishment, (err, user) => {
+            newPunish.user_ordering_punishment = user.username;
+        });
+    }
+
+    let userData = [];
+
+    Punishment.find({ "fk_user_email_taking_punishment": req.user.email, "accepted": { $exists: true, $ne: null } },
         (err, punishments) => {
-            if (punishments) return res.json({ punishments: punishments });
-        })
+            if (punishments) {
+
+                data = JSON.parse(JSON.stringify(punishments));
+                let ids = punishments.map(punishment => {
+                    return punishment._id;
+                })
+
+                User.find({"_id": {$in: ids}}, (err, users) => {
+                    console.log(users);
+                    return res.json({ punishments: users })
+                });
+            }
+
+
+        })/* .then(() => {
+            let newPunish;
+
+
+            for (punishment of data) {
+                newPunish = JSON.parse(JSON.stringify(punishment));
+                User.findById(punishment.fk_user_uid_ordering_punishment, (err, user) => {
+                    newPunish.user_ordering_punishment = user.username;
+                }).then(createPunishmentsData(newPunish));
+            }
+
+        }) */
+        
+
+       
 })
 
 router.post('/create', (req, res) => {
