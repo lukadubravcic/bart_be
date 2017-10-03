@@ -40,54 +40,57 @@ router.get('/mail', (req, res) => {
 
 router.get('/accepted', (req, res) => {
 
-    let data = [];
-    let punishments = [];
-    function createPunishmentsData(punishment) {
-        punishments.push(punishment);
-        //console.log(data)
+    function getUsernameFromPunishment(orderingId, users) {
+        for (user of users) {
+            if (orderingId == user._id) {
+                return user.username;
+            }
+        }
+        return null;
     }
 
+    if (req.user) {
+        Punishment.find({ "fk_user_email_taking_punishment": req.user.email, "accepted": { $exists: true, $ne: null } },
+            (err, punishments) => {
+                if (punishments) {
 
-    let getUsername = () => {
-        User.findById(punishment.fk_user_uid_ordering_punishment, (err, user) => {
-            newPunish.user_ordering_punishment = user.username;
-        });
+                    acceptedPunishments = JSON.parse(JSON.stringify(punishments));
+                    let ids = punishments.map(punishment => {
+                        return punishment.fk_user_uid_ordering_punishment;
+                    });
+
+                    User.find({ _id: { $in: ids } }, (err, users) => {
+                        for (punishment of acceptedPunishments) {
+                            punishment.user_ordering_punishment = getUsernameFromPunishment(punishment.fk_user_uid_ordering_punishment, users);
+                        }
+                        return res.json({ acceptedPunishments: acceptedPunishments })
+                    });
+                }
+            });
     }
+});
 
-    let userData = [];
+router.post('/giveup', (req, res) => {
 
-    Punishment.find({ "fk_user_email_taking_punishment": req.user.email, "accepted": { $exists: true, $ne: null } },
-        (err, punishments) => {
-            if (punishments) {
+    let punishmentId = req.body.punishmentId;
+    console.log(req.body)
 
-                data = JSON.parse(JSON.stringify(punishments));
-                let ids = punishments.map(punishment => {
-                    return punishment._id;
-                })
+    Punishment.findById(punishmentId, (err, punishment) => {
+        if (err) {
+            console.log(err)
+            return;
+        }
+        if (!punishment) {
+            res.status(400).json('Punishment not found.');
+        } else {
+            punishment.given_up = Date.now();
+            punishment.save();
+            return res.json('Your act of weakness is submited');
+        }
 
-                User.find({"_id": {$in: ids}}, (err, users) => {
-                    console.log(users);
-                    return res.json({ punishments: users })
-                });
-            }
+    });
 
-
-        })/* .then(() => {
-            let newPunish;
-
-
-            for (punishment of data) {
-                newPunish = JSON.parse(JSON.stringify(punishment));
-                User.findById(punishment.fk_user_uid_ordering_punishment, (err, user) => {
-                    newPunish.user_ordering_punishment = user.username;
-                }).then(createPunishmentsData(newPunish));
-            }
-
-        }) */
-        
-
-       
-})
+});
 
 router.post('/create', (req, res) => {
     console.log(req.body)

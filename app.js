@@ -12,6 +12,7 @@ const GameController = require('./app/controllers/GameController');
 app.use(cors());
 
 app.use((req, res, next) => {
+    
     if (req.headers && req.headers.authorization && req.headers.authorization.split(' ')[0] === 'JWT') {
         jwt.verify(req.headers.authorization.split(' ')[1], 'salty', (err, decode) => {
             if (err) req.user = undefined;
