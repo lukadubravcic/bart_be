@@ -40,6 +40,7 @@ router.get('/mail', (req, res) => {
 
 router.get('/accepted', (req, res) => {
 
+console.log(req.user)
     function getUsernameFromPunishment(orderingId, users) {
         for (user of users) {
             if (orderingId == user._id) {
@@ -50,30 +51,38 @@ router.get('/accepted', (req, res) => {
     }
 
     if (req.user) {
-        Punishment.find({ "fk_user_email_taking_punishment": req.user.email, "accepted": { $exists: true, $ne: null } },
-            (err, punishments) => {
-                if (punishments) {
+        Punishment.find({
+            fk_user_email_taking_punishment: req.user.email,
+            accepted: { $exists: true, $ne: null },
+            $or: [
+                { given_up: null },
+                { given_up: { $exists: false } }
+            ]
+        }, (err, punishments) => {
+            if (err) console.log(err);
+            if (punishments) {
+                acceptedPunishments = JSON.parse(JSON.stringify(punishments));
+                let ids = punishments.map(punishment => {
+                    return punishment.fk_user_uid_ordering_punishment;
+                });
 
-                    acceptedPunishments = JSON.parse(JSON.stringify(punishments));
-                    let ids = punishments.map(punishment => {
-                        return punishment.fk_user_uid_ordering_punishment;
-                    });
-
-                    User.find({ _id: { $in: ids } }, (err, users) => {
-                        for (punishment of acceptedPunishments) {
-                            punishment.user_ordering_punishment = getUsernameFromPunishment(punishment.fk_user_uid_ordering_punishment, users);
-                        }
-                        return res.json({ acceptedPunishments: acceptedPunishments })
-                    });
-                }
-            });
+                User.find({ _id: { $in: ids } }, (err, users) => {
+                    for (punishment of acceptedPunishments) {
+                        punishment.user_ordering_punishment = getUsernameFromPunishment(punishment.fk_user_uid_ordering_punishment, users);
+                    }
+                    /* console.log('------ ACCEPTED PUSNISHMENTS ------')
+                    console.log(acceptedPunishments) */
+                    return res.json({ acceptedPunishments: acceptedPunishments })
+                });
+            }
+        });
     }
 });
 
 router.post('/giveup', (req, res) => {
 
     let punishmentId = req.body.punishmentId;
-    console.log(req.body)
+    console.log(punishmentId)
 
     Punishment.findById(punishmentId, (err, punishment) => {
         if (err) {
@@ -87,9 +96,7 @@ router.post('/giveup', (req, res) => {
             punishment.save();
             return res.json('Your act of weakness is submited');
         }
-
     });
-
 });
 
 router.post('/create', (req, res) => {
