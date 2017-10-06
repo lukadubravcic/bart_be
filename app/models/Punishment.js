@@ -25,8 +25,14 @@ const PunishmentSchema = new Schema({
         default: null
     },
     tries: {},
-    done: { type: Date },
-    failed: { type: Date },
+    done: {
+        type: Date,
+        default: null
+    },
+    failed: {
+        type: Date,
+        default: null
+    },
     given_up: {
         type: Date,
         default: null

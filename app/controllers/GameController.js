@@ -40,7 +40,7 @@ router.get('/mail', (req, res) => {
 
 router.get('/accepted', (req, res) => {
 
-console.log(req.user)
+    console.log(req.user)
     function getUsernameFromPunishment(orderingId, users) {
         for (user of users) {
             if (orderingId == user._id) {
@@ -78,6 +78,18 @@ console.log(req.user)
         });
     }
 });
+
+router.get('/past', (req, res) => {
+
+    if (req.user) {
+        Punishment.find({ fk_user_email_taking_punishment: req.user.email }, (err, punishments) => {
+            if(err) return res.status(500).json({errorMsg: 'Error on getting punishment data form database.'})
+            else if(!punishments) return res.status(500).json({errorMsg: 'No punishments.'})
+            else if (punishments && punishments.length>0) res.json(punishments);
+        })
+    }
+
+})
 
 router.post('/giveup', (req, res) => {
 
