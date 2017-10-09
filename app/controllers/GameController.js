@@ -41,23 +41,15 @@ router.get('/mail', (req, res) => {
 router.get('/accepted', (req, res) => {
 
     console.log(req.user)
-    function getUsernameFromPunishment(orderingId, users) {
-        for (user of users) {
-            if (orderingId == user._id) {
-                return user.username;
-            }
-        }
-        return null;
-    }
 
+    //db.inventory.find( { $or: [ { status: "A" }, { qty: { $lt: 30 } } ] } )
     if (req.user) {
         Punishment.find({
             fk_user_email_taking_punishment: req.user.email,
             accepted: { $exists: true, $ne: null },
-            $or: [
-                { given_up: null },
-                { given_up: { $exists: false } }
-            ]
+            given_up: null,
+            failed: null,
+            done: null
         }, (err, punishments) => {
             if (err) console.log(err);
             if (punishments) {
@@ -68,11 +60,10 @@ router.get('/accepted', (req, res) => {
 
                 User.find({ _id: { $in: ids } }, (err, users) => {
                     for (punishment of acceptedPunishments) {
-                        punishment.user_ordering_punishment = getUsernameFromPunishment(punishment.fk_user_uid_ordering_punishment, users);
+                        punishment.user_ordering_punishment = getUsernameFromPunishmentById(punishment.fk_user_uid_ordering_punishment, users);
                     }
-                    /* console.log('------ ACCEPTED PUSNISHMENTS ------')
-                    console.log(acceptedPunishments) */
-                    return res.json({ acceptedPunishments: acceptedPunishments })
+                    // FILTER PUNISHMENTS WITH FAILED, DONE, GIVENUP FIELDS SET
+                    return res.json({ acceptedPunishments: acceptedPunishments });
                 });
             }
         });
@@ -83,12 +74,46 @@ router.get('/past', (req, res) => {
 
     if (req.user) {
         Punishment.find({ fk_user_email_taking_punishment: req.user.email }, (err, punishments) => {
-            if(err) return res.status(500).json({errorMsg: 'Error on getting punishment data form database.'})
-            else if(!punishments) return res.status(500).json({errorMsg: 'No punishments.'})
-            else if (punishments && punishments.length>0) res.json(punishments);
+            if (err) return res.status(500).json({ errorMsg: 'Error on getting punishment data from database.' })
+            else if (!punishments) return res.status(500).json({ errorMsg: 'No punishments.' })
+            else if (punishments && punishments.length > 0) {
+                let pastPunishments = JSON.parse(JSON.stringify(punishments));
+                let ids = pastPunishments.map(punishment => {
+                    return punishment.fk_user_uid_ordering_punishment;
+                });
+
+                User.find({ _id: { $in: ids } }, (err, users) => {
+                    for (punishment of pastPunishments) {
+                        punishment.user_ordering_punishment = getUsernameFromPunishmentById(punishment.fk_user_uid_ordering_punishment, users);
+                    }
+                    return res.json({ pastPunishments: pastPunishments });
+                });
+            }
+        });
+    }
+});
+
+router.get('/ordered', (req, res) => {
+
+    if (req.user) {
+        Punishment.find({ fk_user_uid_ordering_punishment: req.user._id }, (err, punishments) => {
+            if (err) return res.status(500).json({ errorMsg: 'Error on getting punishment data from database.' })
+            else if (!punishments) return res.status(500).json({ errorMsg: 'No punishments.' })
+            else if (punishments && punishments.length > 0) {
+                let orderedPunishments = JSON.parse(JSON.stringify(punishments));
+                let userEmails = orderedPunishments.map(punishment => {
+                    return punishment.fk_user_email_taking_punishment;
+                })
+                User.find({ email: { $in: userEmails } }, (err, users) => {
+                    for (punishment of orderedPunishments) {
+                        punishment.user_taking_punishment = getUsernameFromPunishmentByEmail(punishment.fk_user_email_taking_punishment, users);
+                    }
+
+                    return res.json({ orderedPunishments: orderedPunishments });
+                });
+            }
         })
     }
-
 })
 
 router.post('/giveup', (req, res) => {
@@ -170,3 +195,23 @@ router.post('/create', (req, res) => {
 
 
 module.exports = router;
+
+function getUsernameFromPunishmentById(orderingId, users) {
+    for (user of users) {
+        if (orderingId == user._id) {
+            if (user.username) return user.username;
+            else return user.email;
+        }
+    }
+    return null;
+}
+
+function getUsernameFromPunishmentByEmail(receivingUserEmail, users) {
+    for (user of users) {
+        if (receivingUserEmail === user.email) {
+            if (user.username) return user.username;
+            else return user.email;
+        }
+    }
+    return null
+}
