@@ -114,7 +114,7 @@ router.get('/ordered', (req, res) => {
             }
         })
     }
-})
+});
 
 router.post('/giveup', (req, res) => {
 
