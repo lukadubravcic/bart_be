@@ -2,7 +2,7 @@
 
 ## User endpoints:
 
- - get (/) - return user info
+ - get (/) - return user info if jwt token is provided
  - post (/login) - on email and password returns jwt token
  - post (/register) - on user data, creates new user and sends created data back
 

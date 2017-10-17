@@ -16,7 +16,6 @@ const User = require('../models/User');
 const Punishment = require('../models/Punishment');
 
 
-
 router.get('/mail', (req, res) => {
 
     /* 
@@ -134,6 +133,10 @@ router.post('/giveup', (req, res) => {
             return res.json('Your act of weakness is submited');
         }
     });
+});
+
+router.post('/save', (req,res)=>{
+    console.log(req.body)
 });
 
 router.post('/create', (req, res) => {

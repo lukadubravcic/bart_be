@@ -38,7 +38,10 @@ const PunishmentSchema = new Schema({
         default: null
     },
     total_time_spent: { type: Number },
-    progress: { type: Number }
+    progress: {
+        type: Number, 
+        default: 0
+    }
 })
 
 mongoose.model('Punishment', PunishmentSchema);
