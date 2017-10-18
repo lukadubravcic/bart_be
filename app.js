@@ -9,11 +9,13 @@ const db = require('./app/config/db');
 const UserController = require('./app/controllers/UserController');
 const GameController = require('./app/controllers/GameController');
 
+const SALT = 'salty';
+
 app.use(cors());
 
 app.use((req, res, next) => {
     if (req.headers && req.headers.authorization && req.headers.authorization.split(' ')[0] === 'JWT') {
-        jwt.verify(req.headers.authorization.split(' ')[1], 'salty', (err, decode) => {
+        jwt.verify(req.headers.authorization.split(' ')[1], SALT, (err, decode) => {
             if (err) req.user = undefined;
             req.user = decode;
             next();

@@ -10,11 +10,15 @@ const sendmail = require('sendmail')({
     }
 });
 
-router.use(bodyParser.urlencoded({ extended: true }));
-
 const User = require('../models/User');
 const Punishment = require('../models/Punishment');
 
+router.use(bodyParser.urlencoded({ extended: true }));
+
+router.use((req, res, next) => {
+    console.log(req.body)
+    next();
+})
 
 router.get('/mail', (req, res) => {
 
@@ -39,9 +43,6 @@ router.get('/mail', (req, res) => {
 
 router.get('/accepted', (req, res) => {
 
-    console.log(req.user)
-
-    //db.inventory.find( { $or: [ { status: "A" }, { qty: { $lt: 30 } } ] } )
     if (req.user) {
         Punishment.find({
             fk_user_email_taking_punishment: req.user.email,
@@ -61,8 +62,7 @@ router.get('/accepted', (req, res) => {
                     for (punishment of acceptedPunishments) {
                         punishment.user_ordering_punishment = getUsernameFromPunishmentById(punishment.fk_user_uid_ordering_punishment, users);
                     }
-                    // FILTER PUNISHMENTS WITH FAILED, DONE, GIVENUP FIELDS SET
-                    return res.json({ acceptedPunishments: acceptedPunishments });
+                    return res.status(200).json({ acceptedPunishments: acceptedPunishments });
                 });
             }
         });
@@ -135,8 +135,38 @@ router.post('/giveup', (req, res) => {
     });
 });
 
-router.post('/save', (req,res)=>{
-    console.log(req.body)
+router.post('/save', (req, res) => {
+
+    // pronadi kaznu, provjeri jel broj validan
+    if (req.user && req.body.progress >= 0 && req.body.progress <= 99) {
+
+        Punishment.findById(req.body.id, (err, punishment) => {
+            if (err) return res.status(500).json('There was a problem finding the punishment.');
+            if (!punishment) return res.status(400).json('Punishment does not exist.');
+            if (req.user.email !== punishment.fk_user_email_taking_punishment) return res.status(400).json("Will not compute.");
+            
+            punishment.progress = req.body.progress;
+            punishment.save((err, punishment) => {
+                if (err) return res.status(500).json('There was a problem updating the punishment.');
+                return res.status(200).json(punishment);
+            });
+        });
+    }
+});
+
+router.post('/done', (req, res) => {
+    console.log(req.body);
+    if (req.user) {
+        Punishment.findById(req.body.id, (err, punishment) => {
+            if (err) return res.status(500).json('There was a problem finding the punishment.');
+            if (!punishment) return res.status(400).json('Punishment does not exist.')
+            punishment.done = Date.now();
+            punishment.save((err, punishment) => {
+                if (err) return res.status(500).json('There was a problem saving the punishment.');
+                return res.status(200).json('Punishment saved.');
+            });
+        });
+    }
 });
 
 router.post('/create', (req, res) => {
