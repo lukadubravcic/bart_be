@@ -138,7 +138,7 @@ router.post('/giveup', (req, res) => {
 router.post('/save', (req, res) => {
 
     // pronadi kaznu, provjeri jel broj validan
-    if (req.user && req.body.progress >= 0 && req.body.progress <= 99) {
+    if (req.user && req.body.progress >= 0 && req.body.progress <= 100) {
 
         Punishment.findById(req.body.id, (err, punishment) => {
             if (err) return res.status(500).json('There was a problem finding the punishment.');
