@@ -24,7 +24,10 @@ const PunishmentSchema = new Schema({
         type: Date,
         default: null
     },
-    tries: {},
+    tries: {
+        type: Number,
+        default: 0
+    },
     done: {
         type: Date,
         default: null
@@ -39,7 +42,7 @@ const PunishmentSchema = new Schema({
     },
     total_time_spent: { type: Number },
     progress: {
-        type: Number, 
+        type: Number,
         default: 0
     }
 })

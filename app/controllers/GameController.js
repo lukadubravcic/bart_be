@@ -12,6 +12,7 @@ const sendmail = require('sendmail')({
 
 const User = require('../models/User');
 const Punishment = require('../models/Punishment');
+const Try = require('../models/Try');
 
 router.use(bodyParser.urlencoded({ extended: true }));
 
@@ -134,6 +135,15 @@ router.post('/giveup', (req, res) => {
         }
     });
 });
+
+router.post('/log', (req,res)=>{
+    
+    console.log(req.body);
+    /* if (req.user) {
+
+        let newTry = new Try();
+    } */
+}) 
 
 router.post('/save', (req, res) => {
 
