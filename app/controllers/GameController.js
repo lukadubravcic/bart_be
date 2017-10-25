@@ -16,10 +16,10 @@ const Try = require('../models/Try');
 
 router.use(bodyParser.urlencoded({ extended: true }));
 
-router.use((req, res, next) => {
+/* router.use((req, res, next) => {
     console.log(req.body)
     next();
-})
+}) */
 
 router.get('/mail', (req, res) => {
 
@@ -136,14 +136,34 @@ router.post('/giveup', (req, res) => {
     });
 });
 
-router.post('/log', (req,res)=>{
-    
-    console.log(req.body);
-    /* if (req.user) {
+router.post('/log', (req, res) => {
 
-        let newTry = new Try();
-    } */
-}) 
+    console.log(req.body);
+   
+    if (req.user) {
+        Punishment.findById(req.body.id, (err, punishment) => {
+            
+            if (err) return res.status(500).json('There was a problem finding the punishment.');
+
+            if (!punishment) return res.status(400).json('Punisment does not exist.');
+
+            let newTry = new Try({
+                FK_punishment_uid: req.body.id,
+                time_spent: req.body.timeSpent
+            });
+            
+            newTry.save((err, result) => {
+                if (err) return res.status(500).json('Error on saving try.');
+                
+                punishment.total_time_spent += parseInt(req.body.timeSpent);
+                punishment.save((err, punishment) => {
+                    if (err) return res.status(500).json('Error on saving punishment try.');
+                    return res.status(200).json('Your try is logged.')
+                });
+            });
+        });
+    }
+});
 
 router.post('/save', (req, res) => {
 
@@ -154,7 +174,7 @@ router.post('/save', (req, res) => {
             if (err) return res.status(500).json('There was a problem finding the punishment.');
             if (!punishment) return res.status(400).json('Punishment does not exist.');
             if (req.user.email !== punishment.fk_user_email_taking_punishment) return res.status(400).json("Will not compute.");
-            
+
             punishment.progress = req.body.progress;
             punishment.save((err, punishment) => {
                 if (err) return res.status(500).json('There was a problem updating the punishment.');

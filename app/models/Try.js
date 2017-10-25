@@ -10,7 +10,8 @@ const TrySchema = new Schema({
         default: Date.now
     },
     time_spent: {
-        type: Number // number of miliseconds
+        type: Number, // number of miliseconds
+        default: 0
     }
 });
 
