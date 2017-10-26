@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 
 const TrySchema = new Schema({
-    FK_punishment_uid: {
+    fk_punishment_uid: {
         type: String
     },
     try: {

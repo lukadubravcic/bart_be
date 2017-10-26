@@ -17,9 +17,9 @@ const Try = require('../models/Try');
 router.use(bodyParser.urlencoded({ extended: true }));
 
 /* router.use((req, res, next) => {
-    console.log(req.body)
+    console.log(req.user)
     next();
-}) */
+}); */
 
 router.get('/mail', (req, res) => {
 
@@ -148,7 +148,7 @@ router.post('/log', (req, res) => {
             if (!punishment) return res.status(400).json('Punisment does not exist.');
 
             let newTry = new Try({
-                FK_punishment_uid: req.body.id,
+                fk_punishment_uid: req.body.id,
                 time_spent: req.body.timeSpent
             });
             

@@ -8,6 +8,7 @@ const db = require('./app/config/db');
 
 const UserController = require('./app/controllers/UserController');
 const GameController = require('./app/controllers/GameController');
+const PrefController = require('./app/controllers/PrefController');
 
 const SALT = 'salty';
 
@@ -29,6 +30,8 @@ app.use((req, res, next) => {
 app.use('/users', UserController);
 
 app.use('/punishment', GameController);
+
+app.use('/prefs', PrefController);
 // http://expressjs.com/en/guide/using-middleware.html - dodati da se prije izvrsavanja određenih ruta provjeri login status:
 /* loginRequired = (req, res, next) =>{
     if (req.user) next();

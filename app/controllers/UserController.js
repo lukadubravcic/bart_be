@@ -3,10 +3,11 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const bodyParser = require('body-parser');
+
 router.use(bodyParser.urlencoded({ extended: true }));
 
 const User = require('../models/User');
-
+const Pref = require('../models/Pref');
 
 router.post('/login', (req, res) => {
 
@@ -39,7 +40,13 @@ router.post('/register', (req, res) => {
             });
         } else {
             user.hash_password = undefined;
-            return res.json(user);
+            let newPref = new Pref();
+            newPref.fk_user_uid = user._id;
+            newPref.save((err, pref)=>{
+                if (err) return res.status(500).json('There was a problem while creating new user.');
+                return res.json(user);
+            })
+            
         }
     });
 });
