@@ -20,7 +20,15 @@ router.post('/login', (req, res) => {
             if (!user.comparePassword(req.body.password)) {
                 return res.status(401).json({ message: "Authentication failed. Wrong password." });
             } else {
-                return res.json({ token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'), username: user.username, _id: user._id });
+                Pref.findOne({ fk_user_uid: user._id }, (err, pref) => {                    
+                    return res.json({
+                        token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'), 
+                        username: user.username, 
+                        _id: user._id,
+                        prefs: pref
+                    });
+
+                });
             }
         }
     });
@@ -42,11 +50,11 @@ router.post('/register', (req, res) => {
             user.hash_password = undefined;
             let newPref = new Pref();
             newPref.fk_user_uid = user._id;
-            newPref.save((err, pref)=>{
+            newPref.save((err, pref) => {
                 if (err) return res.status(500).json('There was a problem while creating new user.');
                 return res.json(user);
             })
-            
+
         }
     });
 });

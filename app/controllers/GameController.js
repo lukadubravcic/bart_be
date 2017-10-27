@@ -14,6 +14,8 @@ const User = require('../models/User');
 const Punishment = require('../models/Punishment');
 const Try = require('../models/Try');
 
+const BART_MAIL = 'Bart@barted.com';
+
 router.use(bodyParser.urlencoded({ extended: true }));
 
 /* router.use((req, res, next) => {
@@ -58,7 +60,6 @@ router.get('/accepted', (req, res) => {
                 let ids = punishments.map(punishment => {
                     return punishment.fk_user_uid_ordering_punishment;
                 });
-
                 User.find({ _id: { $in: ids } }, (err, users) => {
                     for (punishment of acceptedPunishments) {
                         punishment.user_ordering_punishment = getUsernameFromPunishmentById(punishment.fk_user_uid_ordering_punishment, users);
@@ -139,10 +140,10 @@ router.post('/giveup', (req, res) => {
 router.post('/log', (req, res) => {
 
     console.log(req.body);
-   
+
     if (req.user) {
         Punishment.findById(req.body.id, (err, punishment) => {
-            
+
             if (err) return res.status(500).json('There was a problem finding the punishment.');
 
             if (!punishment) return res.status(400).json('Punisment does not exist.');
@@ -151,11 +152,12 @@ router.post('/log', (req, res) => {
                 fk_punishment_uid: req.body.id,
                 time_spent: req.body.timeSpent
             });
-            
+
             newTry.save((err, result) => {
                 if (err) return res.status(500).json('Error on saving try.');
-                
+
                 punishment.total_time_spent += parseInt(req.body.timeSpent);
+                punishment.tries++;
                 punishment.save((err, punishment) => {
                     if (err) return res.status(500).json('Error on saving punishment try.');
                     return res.status(200).json('Your try is logged.')
@@ -165,24 +167,6 @@ router.post('/log', (req, res) => {
     }
 });
 
-router.post('/save', (req, res) => {
-
-    // pronadi kaznu, provjeri jel broj validan
-    if (req.user && req.body.progress >= 0 && req.body.progress <= 100) {
-
-        Punishment.findById(req.body.id, (err, punishment) => {
-            if (err) return res.status(500).json('There was a problem finding the punishment.');
-            if (!punishment) return res.status(400).json('Punishment does not exist.');
-            if (req.user.email !== punishment.fk_user_email_taking_punishment) return res.status(400).json("Will not compute.");
-
-            punishment.progress = req.body.progress;
-            punishment.save((err, punishment) => {
-                if (err) return res.status(500).json('There was a problem updating the punishment.');
-                return res.status(200).json(punishment);
-            });
-        });
-    }
-});
 
 router.post('/done', (req, res) => {
     console.log(req.body);
@@ -219,16 +203,6 @@ router.post('/create', (req, res) => {
                     let what_to_write = punishmentData.whatToWrite;
                     let why = punishmentData.why;
 
-                    /* 
-                    --- TODO ---
-                    let tris = TODO;
-                    let total_time_spent = TODO 
-                     */
-
-                    /* 
-                    TODO: provjera ako ista kazna vec postoji
-                    */
-
                     let newPunishment = new Punishment({
                         fk_user_uid_ordering_punishment,
                         fk_user_email_taking_punishment,
@@ -242,9 +216,11 @@ router.post('/create', (req, res) => {
                             return res.send({ errorMsg: 'Error on database entry' });
                         } else {
                             //console.log(punishment);
-                            return res.json(punishment);
+                            res.json(punishment);
                         }
-                    });
+                    }).then(()=>{
+                        console.log('kreirano')
+                    })
                 }
             });
         } else {
@@ -277,4 +253,19 @@ function getUsernameFromPunishmentByEmail(receivingUserEmail, users) {
         }
     }
     return null
+}
+
+
+
+function sendMail(to, subject, mailContent) {
+    sendmail({
+        from: BART_MAIL,
+        to: to,
+        subject: subject,
+        text: mailContent,
+    }, function (err, reply) {
+        console.log(err && err.stack);
+        console.dir(reply);
+    });
+    res.json('mail sent');
 }
