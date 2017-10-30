@@ -218,13 +218,14 @@ router.post('/create', (req, res) => {
                             //console.log(punishment);
                             res.json(punishment);
                         }
-                    }).then(()=>{
-                        console.log('kreirano')
+                    }).then(() => {
+                        console.log('kreirano');
+                        // slanje maila
                     })
                 }
             });
         } else {
-            res.json('Nista')
+            res.status(400).json('Punishment misses data.');
         }
     }
 
@@ -257,9 +258,9 @@ function getUsernameFromPunishmentByEmail(receivingUserEmail, users) {
 
 
 
-function sendMail(to, subject, mailContent) {
+function sendMail(from, to, subject, mailContent) {
     sendmail({
-        from: BART_MAIL,
+        from: from,
         to: to,
         subject: subject,
         text: mailContent,
@@ -268,4 +269,12 @@ function sendMail(to, subject, mailContent) {
         console.dir(reply);
     });
     res.json('mail sent');
+}
+
+function notifyUser(senderId, receiveingId, notificationType) {
+    Pref.findOne({ fk_user_id: senderId }, (err, pref) => {
+        if(pref[notificationType]) {
+            //posalji mail
+        } 
+    })
 }
