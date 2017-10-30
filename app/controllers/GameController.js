@@ -9,6 +9,7 @@ const sendmail = require('sendmail')({
         error: console.error
     }
 });
+const sendNotification = require('../helpers/sendNotification');
 
 const User = require('../models/User');
 const Punishment = require('../models/Punishment');
@@ -22,6 +23,12 @@ router.use(bodyParser.urlencoded({ extended: true }));
     console.log(req.user)
     next();
 }); */
+
+router.get('/test', (req, res) => {
+
+    sendNotification(req.user._id, '59ce445117dc67248c637138', '59d4c81d31fa990f180e5269', 'signup');
+
+});
 
 router.get('/mail', (req, res) => {
 
@@ -273,8 +280,8 @@ function sendMail(from, to, subject, mailContent) {
 
 function notifyUser(senderId, receiveingId, notificationType) {
     Pref.findOne({ fk_user_id: senderId }, (err, pref) => {
-        if(pref[notificationType]) {
+        if (pref[notificationType]) {
             //posalji mail
-        } 
+        }
     })
 }
