@@ -21,55 +21,75 @@ const APP_LINK = constants.APP_ADRRESS //'localhost:8000';
 const userPrefNotifications = [constants.notifyFailed, constants.notifyDone, constants.notifyTrying];
 
 
-function sendMail(from, to, subject, mailContent) {
+function sendMail(receiverMail, notificationType, mailContent) {
+
+    let from = BART_MAIL;
+    let to = receiverMail;
+    let subject = getMailSubject(notificationType);
+    // console.log(from ,to ,subject, mailContent);
+
     sendmail({
         from: from,
-        to: to,
+        to: receiverMail,
         subject: subject,
-        text: mailContent,
+        html: mailContent,
     }, function (err, reply) {
         console.log(err && err.stack);
         console.dir(reply);
     }).then(() => {
-        console.log('mail sent')
-    });
+        return;
+    })
 }
 
-const notifyUser = (senderId, receiveingId, punishmentId, notificationType) => {
+const notifyUser = (senderId, receivingEmail, punishmentId, notificationType) => {
 
     let notificationContent = 0;
     let sender = 0;
-    let receiver = 0;
     let punishment = 0;
-    let prefs = 0;
 
     let queries = [];
 
     senderId ? queries.push(getUser(senderId)) : queries.push(null);
-    receiveingId ? queries.push(getUser(receiveingId)) : queries.push(null);
     punishmentId ? queries.push(getPunishment(punishmentId)) : queries.push(null);
-    //inArray(notificationType, userPrefNotifications) ? queries.push(getUserPreferences(receiveingId)) : queries.push(null);
+
 
     Promise.all(queries).then(queryData => {
 
         sender = queryData[0];
-        receiver = queryData[1];
-        punishment = queryData[2];
-        prefs = queryData[3];
+        punishment = queryData[1];
 
-        notificationContent = createNotificationContent({
-            sender: sender,
-            receiver: receiver,
-            punishment: punishment,
-            prefs: prefs,
-            notificationType: notificationType
-        });
+        if (inArray(notificationType, userPrefNotifications)) { // DONE, FAILED, TRYING
 
-        console.log(notificationContent);
+            getUserPreferences(receiverMail).then((pref) => {
+                if (pref[notificationType]) {
+                    notificationContent = createNotificationContent({
+                        sender: sender,
+                        punishment: punishment,
+                        notificationType: notificationType
+                    });
+                }
+                if (notificationContent) {
+                    sendMail(receivingEmail, notificationType, notificationContent);
+                }
+            });
+        } else { // ostale notifikacije
 
-        /* if (notificationContent) {
-            sendMail(from, to, subject, mailContent);
-        }; */
+            notificationContent = createNotificationContent({
+                sender: sender,
+                punishment: punishment,
+                notificationType: notificationType
+            });
+
+            // console.log(notificationContent);
+
+            if (notificationContent) {
+                sendMail(receivingEmail, notificationType, notificationContent);
+            };
+
+        }
+    }, reason => {
+        // failani promise
+        console.log('Promise query fail');
     });
 }
 
@@ -114,6 +134,46 @@ function createNotificationContent(data) {
     }
 }
 
+function getMailSubject(notificationType) {
+    switch (notificationType) {
+        case 'signup':
+            return 'Signing up';
+            break;
+        case 'password_reset_confirmation':
+            return 'Confirmation for password reset';
+            break;
+        case 'new_password':
+            return 'New password';
+            break;
+        case 'punishment_requested':
+            return 'New punishment';
+            break;
+        case 'punishment_accepted':
+            return 'Punishment accepted';
+            break;
+        case 'punishment_rejected':
+            return 'Punishment rejected';
+            break;
+        case 'punishment_ignored':
+            return 'Punishment ignored';
+            break;
+        case 'punishment_given_up':
+            return 'Punishment given up';
+            break;
+        case 'notify_trying':
+            return 'Punishment tried';
+            break;
+        case 'notify_done':
+            return 'Punishment finished';
+            break;
+        case 'notify_failed':
+            return 'Punishment failed';
+            break;
+        default:
+            return null;
+    }
+}
+
 
 function getUserPreferences(userId) {
     return new Promise((resolve, reject) => {
@@ -122,10 +182,9 @@ function getUserPreferences(userId) {
                 reject(err);
                 return;
             } else if (!pref) {
-                reject();
+                reject(new Pref());
                 return;
             };
-            console.log(pref)
             resolve(pref);
         });
     });
@@ -138,7 +197,23 @@ function getUser(id) {
                 reject(err);
                 return;
             } else if (!user) {
-                reject();
+                reject('User not found.');
+                return;
+            };
+
+            resolve(user);
+        });
+    });
+}
+
+function getUserByMail(mail) {
+    return new Promise((resolve, reject) => {
+        User.findOne({ email: mail }, (err, user) => {
+            if (err) {
+                reject(err);
+                return;
+            } else if (!user) {
+                resolve(mail);
                 return;
             };
 
@@ -154,7 +229,7 @@ function getPunishment(id) {
                 reject(err);
                 return;
             } else if (!punishment) {
-                reject();
+                reject('Punishment not found.');
                 return;
             }
 
@@ -162,65 +237,6 @@ function getPunishment(id) {
         })
     })
 }
-
-
-
-function getSignUpNotificationContent() {
-    return emailNotificationCreators.signUpConfirmation();
-}
-
-function getPasswordResetConfirmationContent() {
-    // TODO
-}
-
-function getNewPasswordNotificationContent() {
-    // TODO
-}
-
-function getPunishmentRequestedNotificationContent(punisj) {
-    Punishment.findById(punishmentId, (err, punishment) => {
-        if (punishment) {
-            return emailNotificationCreators.punishment(punishment.why, APP_LINK);
-        }
-    });
-}
-
-function getPunishmentAcceptedNotificationContent(punishmentId) {
-    Punishment.findById(punishmentId, (err, punishment) => {
-        if (punishment) {
-            return emailNotificationCreators.accepted(punishment.why);
-        }
-    });
-}
-
-function getPunishmentRejectedNotificationContent(punishmentId) {
-    Punishment.findById(punishmentId, (err, punishment) => {
-        if (punishment) {
-            return emailNotificationCreators.rejected(punishment.why);
-        }
-    });
-}
-
-function getPunishmentIgnoredNotificationContent(punishmentId) {
-    Punishment.findById(punishmentId, (err, punishment) => {
-        if (punishment) {
-            return emailNotificationCreators.ignored(punishment.why);
-        }
-    });
-}
-
-function getPunishmentGivenUpNotificationContent(receiveingId, punishmentId) {
-    User.findById(receiveingId, (err, user) => {
-        if (user) {
-            Punishment.findById(punishmentId, (err, punishment) => {
-                if (punishment) {
-                    return emailNotificationCreators.givenUp(user.username, punishment.why);
-                }
-            });
-        }
-    });
-}
-
 
 function inArray(target, array) {
     for (let i = 0; i < array.length; i++) {

@@ -33,10 +33,6 @@ router.get('/test', (req, res) => {
 
 router.get('/mail', (req, res) => {
 
-    /* 
-        TODO: MAILLLLLLL
-    */
-
     sendmail({
         from: 'bart@barted.com',
         to: 'lukadubravcic@yahoo.com',
@@ -47,9 +43,6 @@ router.get('/mail', (req, res) => {
         console.dir(reply);
     });
     res.json('mail sent');
-    // posalji punishment s najskorijim rokom ili ako user nije logiran, default punishment
-    if (req.user) {
-    }
 });
 
 router.get('/accepted', (req, res) => {
@@ -140,14 +133,18 @@ router.post('/giveup', (req, res) => {
         } else {
             punishment.given_up = Date.now();
             punishment.save();
-            return res.json('Your act of weakness is submited');
+            res.json('Your act of weakness is submited');
+
+            User.findById(punishment.fk_user_uid_ordering_punishment, (err, user) => {
+                if (user) sendNotification(req.body._id, user.email, punishment._id, constants.punishmentGivenUp);
+            });
+
+            return;
         }
-    }).then(sendNotification(req.body._id, punishment.fk_user_email_taking_punishment))
+    })
 });
 
 router.post('/log', (req, res) => {
-
-    console.log(req.body);
 
     if (req.user) {
         Punishment.findById(req.body.id, (err, punishment) => {
@@ -168,7 +165,13 @@ router.post('/log', (req, res) => {
                 punishment.tries++;
                 punishment.save((err, punishment) => {
                     if (err) return res.status(500).json('Error on saving punishment try.');
-                    return res.status(200).json('Your try is logged.')
+                    res.status(200).json('Your try is logged.')
+
+                    User.findById(punishment.fk_user_uid_ordering_punishment, (err, user) => {
+                        if (user) sendNotification(req.body._id, user.email, punishment._id, constants.notifyTrying);
+                    });
+
+                    return;
                 });
             });
         });
@@ -185,19 +188,25 @@ router.post('/done', (req, res) => {
             punishment.done = Date.now();
             punishment.save((err, punishment) => {
                 if (err) return res.status(500).json('There was a problem saving the punishment.');
-                return res.status(200).json('Punishment saved.');
+                res.status(200).json('Punishment saved.');
+
+                User.findById(punishment.fk_user_uid_ordering_punishment, (err, user) => {
+                    if (user) sendNotification(req.body._id, user.email, punishment._id, constants.notifyDone);
+                });
+
+                return;
             });
         });
     }
 });
 
 router.post('/create', (req, res) => {
-    console.log(req.body)
+
     let punishmentData = req.body;
     if (req.user) { // if user logged in
         let userOrderingPunishment = req.user;
         // ako je poslan username
-        if (punishmentData.whomUsername) {
+        if (punishmentData.whomUsername && punishmentData.whatToWrite) {
             User.findOne({ username: punishmentData.whomUsername }, (err, user) => {
                 if (err) return res.send({ errorMsg: 'Error on finding desired user' });
                 if (!user) {
@@ -225,22 +234,29 @@ router.post('/create', (req, res) => {
                         } else {
                             //console.log(punishment);
                             res.json(punishment);
+                            sendNotification(req.body._id, user.email, punishment._id, constants.punishmentRequested);
+                            return;
                         }
-                    }).then(() => {
-                        console.log('kreirano');
-                        // slanje maila
-                    })
+                    });
                 }
             });
+        } else if (punishmentData.whomEmail && punishmentData.whatToWrite) {
+            User.findOne({ username: punishmentData.whomUsername }, (err, user) => {
+                if (err) return res.send({ errorMsg: 'Error on finding desired user' });
+                if (!user) {
+                    // napraviti acc bez username, poslatis mail
+
+                    return res.json({ errorMsg: 'User does not exist.' })
+                } else if (user) {
+                    console.log('test')
+                }
+            });
+
         } else {
             res.status(400).json('Punishment misses data.');
         }
     }
-
-    //res.json(req.body);
 });
-
-
 
 module.exports = router;
 

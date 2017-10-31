@@ -3,6 +3,8 @@ const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const bodyParser = require('body-parser');
+const sendNotification = require('../helpers/sendNotification');
+const constants = require('../config/constants');
 
 router.use(bodyParser.urlencoded({ extended: true }));
 
@@ -20,10 +22,10 @@ router.post('/login', (req, res) => {
             if (!user.comparePassword(req.body.password)) {
                 return res.status(401).json({ message: "Authentication failed. Wrong password." });
             } else {
-                Pref.findOne({ fk_user_uid: user._id }, (err, pref) => {                    
+                Pref.findOne({ fk_user_uid: user._id }, (err, pref) => {
                     return res.json({
-                        token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'), 
-                        username: user.username, 
+                        token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'),
+                        username: user.username,
                         _id: user._id,
                         prefs: pref
                     });
@@ -52,9 +54,9 @@ router.post('/register', (req, res) => {
             newPref.fk_user_uid = user._id;
             newPref.save((err, pref) => {
                 if (err) return res.status(500).json('There was a problem while creating new user.');
-                return res.json(user);
-            })
-
+                res.json(user);
+            });
+            return sendNotification(req.body._id, user.email, 0, constants.signup);
         }
     });
 });
