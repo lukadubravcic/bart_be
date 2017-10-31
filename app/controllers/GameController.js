@@ -15,7 +15,8 @@ const User = require('../models/User');
 const Punishment = require('../models/Punishment');
 const Try = require('../models/Try');
 
-const BART_MAIL = 'Bart@barted.com';
+const constants = require('../config/constants');
+const BART_MAIL = constants.BART_MAIL;
 
 router.use(bodyParser.urlencoded({ extended: true }));
 
@@ -141,7 +142,7 @@ router.post('/giveup', (req, res) => {
             punishment.save();
             return res.json('Your act of weakness is submited');
         }
-    });
+    }).then(sendNotification(req.body._id, punishment.fk_user_email_taking_punishment))
 });
 
 router.post('/log', (req, res) => {

@@ -13,10 +13,12 @@ const sendmail = require('sendmail')({
     }
 });
 
-const BART_MAIL = 'Bart@barted.com';
-const APP_LINK = 'localhost:8000';
+const constants = require('../config/constants');
 
-const userPrefNotifications = ['notify_failed', 'notify_done', 'notify_trying'];
+const BART_MAIL = constants.BART_MAIL // 'Bart@barted.com';
+const APP_LINK = constants.APP_ADRRESS //'localhost:8000';
+
+const userPrefNotifications = [constants.notifyFailed, constants.notifyDone, constants.notifyTrying];
 
 
 function sendMail(from, to, subject, mailContent) {
@@ -28,8 +30,9 @@ function sendMail(from, to, subject, mailContent) {
     }, function (err, reply) {
         console.log(err && err.stack);
         console.dir(reply);
+    }).then(() => {
+        console.log('mail sent')
     });
-    res.json('mail sent');
 }
 
 const notifyUser = (senderId, receiveingId, punishmentId, notificationType) => {
@@ -73,37 +76,37 @@ const notifyUser = (senderId, receiveingId, punishmentId, notificationType) => {
 function createNotificationContent(data) {
 
     switch (data.notificationType) {
-        case 'signup':
+        case constants.signup:
             return emailNotificationCreators.signUpConfirmation();
             break;
-        case 'password_reset_confirmation':
+        case constants.passwordResetConfirmation:
             return emailNotificationCreators.passwordResetConfirmation(resetPwdLink);
             break;
-        case 'new_password':
+        case constants.newPassword:
             return emailNotificationCreators.newPassword(temporaryPwd, changePwdLink);
             break;
-        case 'punishment_requested':
+        case constants.punishmentRequested:
             return emailNotificationCreators.punishment(data.punishment.why, APP_LINK);
             break;
-        case 'punishment_accepted':
+        case constants.punishmentAccepted:
             return emailNotificationCreators.accepted(data.punishment.why);
             break;
-        case 'punishment_rejected':
+        case constants.punishmentRejected:
             return emailNotificationCreators.rejected(data.punishment.why);
             break;
-        case 'punishment_ignored':
+        case constants.punishmentIgnored:
             return emailNotificationCreators.ignored(data.punishment.why);
             break;
-        case 'notify_trying':
+        case constants.notifyTrying:
             return emailNotificationCreators.trying(data.sender.username, data.punishment.why);
             break;
-        case 'notify_done':
+        case constants.notifyDone:
             return emailNotificationCreators.done(data.sender.username, data.punishment.why);
             break;
-        case 'notify_failed':
+        case constants.notifyFailed:
             return emailNotificationCreators.failed(data.sender.username, data.punishment.why);
             break;
-        case 'punishment_givenup':
+        case constants.punishmentGivenUp:
             return emailNotificationCreators.givenUp(data.sender.username, data.punishment.why);
             break;
         default:
