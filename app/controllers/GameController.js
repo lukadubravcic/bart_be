@@ -46,6 +46,7 @@ router.get('/mail', (req, res) => {
 });
 
 router.get('/accepted', (req, res) => {
+    console.log(req.user)
 
     if (req.user) {
         Punishment.find({
@@ -70,6 +71,7 @@ router.get('/accepted', (req, res) => {
             }
         });
     }
+
 });
 
 router.get('/past', (req, res) => {
