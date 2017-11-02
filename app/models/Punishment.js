@@ -24,6 +24,10 @@ const PunishmentSchema = new Schema({
         type: Date,
         default: null
     },
+    rejected: {
+        type: Date,
+        default: null
+    },
     tries: {
         type: Number,
         default: 0
