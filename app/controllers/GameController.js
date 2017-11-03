@@ -263,6 +263,7 @@ router.post('/create', (req, res) => {
 module.exports = router;
 
 function getUsernameFromPunishmentById(orderingId, users) {
+
     for (user of users) {
         if (orderingId == user._id) {
             if (user.username) return user.username;
@@ -273,6 +274,7 @@ function getUsernameFromPunishmentById(orderingId, users) {
 }
 
 function getUsernameFromPunishmentByEmail(receivingUserEmail, users) {
+
     for (user of users) {
         if (receivingUserEmail === user.email) {
             if (user.username) return user.username;
@@ -285,6 +287,7 @@ function getUsernameFromPunishmentByEmail(receivingUserEmail, users) {
 
 
 function sendMail(from, to, subject, mailContent) {
+    
     sendmail({
         from: from,
         to: to,
