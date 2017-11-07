@@ -205,30 +205,27 @@ router.post('/done', (req, res) => {
 router.post('/create', (req, res) => {
 
     let punishmentData = req.body;
+    let userOrderingPunishment = req.user;
+    console.log(punishmentData)
     if (req.user) { // if user logged in
-        let userOrderingPunishment = req.user;
+
+
         // ako je poslan username
         if (punishmentData.whomUsername && punishmentData.whatToWrite) {
+
             User.findOne({ username: punishmentData.whomUsername }, (err, user) => {
                 if (err) return res.send({ errorMsg: 'Error on finding desired user' });
                 if (!user) {
                     return res.json({ errorMsg: 'User does not exist.' })
                 } else if (user) {
                     // potrebno sejvat kaznu
-                    let fk_user_uid_ordering_punishment = userOrderingPunishment._id;
-                    let fk_user_email_taking_punishment = user.email;
-                    let how_many_times = punishmentData.howManyTimes;
-                    let deadline = punishmentData.deadlineDate === '' ? null : punishmentData.deadlineDate;
-                    let what_to_write = punishmentData.whatToWrite;
-                    let why = punishmentData.why;
-
                     let newPunishment = new Punishment({
-                        fk_user_uid_ordering_punishment,
-                        fk_user_email_taking_punishment,
-                        how_many_times,
-                        deadline,
-                        what_to_write,
-                        why
+                        fk_user_uid_ordering_punishment: userOrderingPunishment._id,
+                        fk_user_email_taking_punishment: user.email,
+                        how_many_times: punishmentData.howManyTimes,
+                        deadline: punishmentData.deadlineDate === '' ? null : punishmentData.deadlineDate,
+                        what_to_write: punishmentData.whatToWrite,
+                        why: punishmentData.why
                     });
                     newPunishment.save((err, punishment) => {
                         if (err) {
@@ -242,15 +239,38 @@ router.post('/create', (req, res) => {
                     });
                 }
             });
+
         } else if (punishmentData.whomEmail && punishmentData.whatToWrite) {
-            User.findOne({ username: punishmentData.whomUsername }, (err, user) => {
+            // poslan email
+            User.findOne({ email: punishmentData.whomEmail }, (err, user) => {
                 if (err) return res.send({ errorMsg: 'Error on finding desired user' });
                 if (!user) {
-                    // napraviti acc bez username, poslatis mail
+
+
+                    // TODO: napraviti punishment, poslati mail
 
                     return res.json({ errorMsg: 'User does not exist.' })
                 } else if (user) {
-                    console.log('test')
+                    // stvori kaznu
+                    let newPunishment = new Punishment({
+                        fk_user_uid_ordering_punishment: userOrderingPunishment._id,
+                        fk_user_email_taking_punishment: user.email,
+                        how_many_times: punishmentData.howManyTimes,
+                        deadline: punishmentData.deadlineDate === '' ? null : punishmentData.deadlineDate,
+                        what_to_write: punishmentData.whatToWrite,
+                        why: punishmentData.why
+                    });
+
+                    newPunishment.save((err, punishment) => {
+                        if (err) {
+                            return res.send({ errorMsg: 'Error on database entry' });
+                        } else {
+                            //console.log(punishment);
+                            res.json(punishment);
+                            sendNotification(req.body._id, user.email, punishment._id, constants.punishmentRequested);
+                            return;
+                        }
+                    });
                 }
             });
 
@@ -287,7 +307,7 @@ function getUsernameFromPunishmentByEmail(receivingUserEmail, users) {
 
 
 function sendMail(from, to, subject, mailContent) {
-    
+
     sendmail({
         from: from,
         to: to,

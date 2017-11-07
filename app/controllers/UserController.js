@@ -43,7 +43,7 @@ router.post('/register', (req, res) => {
     newUser.save((err, user) => {
         if (err) {
             if (err.code === 11000) {
-                return res.status(400).send('User with that email exists.');
+                return res.json('User with that email exists.');
             }
             return res.status(400).send({
                 message: err
@@ -85,25 +85,37 @@ router.get('/', (req, res) => {
 router.post('/username', (req, res) => {
 
     if (req.user && req.body.username) {
-        User.findById(req.user._id, (err, user) => {
-            if (err) return res.status(500).send('There was a problem finding the user.');
-            if (!user) return res.status(400).send('No user found');
 
-            if (user.username) return res.status(400).send('Cannot update user with existing username.');
+        User.findOne({username: req.body.username}, (err, user)=>{
 
-            else if (!user.username) {
-
-                user.username = req.body.username;
-                user.save((err, result) => {
-                    if (err) return res.status(500).send('Error on saving username.');
-                    return res.send({
-                        _id: user._id,
-                        email: user.email,
-                        username: user.username
-                    });
-                });
+            if(err) return res.status(500).send('There was a problem finding the user.');
+            if (user){
+                // user postoji
+                return res.status(400).send('User with that username exists.');
             }
-        });
+            // user doesnt exist (username not taken)
+            User.findById(req.user._id, (err, user) => {
+
+                if (err) return res.status(500).send('There was a problem finding the user.');
+                if (!user) return res.status(400).send('No user found');
+    
+                if (user.username) return res.status(400).send('Cannot update user with existing username.');
+    
+                else if (!user.username) {
+    
+                    user.username = req.body.username;
+
+                    user.save((err, result) => {
+                        if (err) return res.status(500).send('Error on saving username.');
+                        return res.send({
+                            _id: user._id,
+                            email: user.email,
+                            username: user.username
+                        });
+                    });
+                }
+            });
+        });        
     } else {
         res.status(400).json('Unauthorized access.');
     }
