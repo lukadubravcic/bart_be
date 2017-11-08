@@ -13,7 +13,6 @@ const Pref = require('../models/Pref');
 
 router.post('/login', (req, res) => {
 
-    console.log(req.body);
     User.findOne({ email: req.body.email }, (err, user) => {
         if (err) return res.status(500).send({ message: err });
         if (!user) {
@@ -26,10 +25,10 @@ router.post('/login', (req, res) => {
                     return res.json({
                         token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'),
                         username: user.username,
+                        email: user.email,
                         _id: user._id,
                         prefs: pref
                     });
-
                 });
             }
         }
@@ -37,13 +36,15 @@ router.post('/login', (req, res) => {
 });
 
 router.post('/register', (req, res) => {
+
     console.log(req.body);
     let newUser = new User(req.body);
     newUser.hash_password = bcrypt.hashSync(req.body.password, 10);
+
     newUser.save((err, user) => {
         if (err) {
             if (err.code === 11000) {
-                return res.json('User with that email exists.');
+                return res.json({ errUserExist: 'User with that email exists.' });
             }
             return res.status(400).send({
                 message: err
@@ -86,10 +87,10 @@ router.post('/username', (req, res) => {
 
     if (req.user && req.body.username) {
 
-        User.findOne({username: req.body.username}, (err, user)=>{
+        User.findOne({ username: req.body.username }, (err, user) => {
 
-            if(err) return res.status(500).send('There was a problem finding the user.');
-            if (user){
+            if (err) return res.status(500).send('There was a problem finding the user.');
+            if (user) {
                 // user postoji
                 return res.status(400).send('User with that username exists.');
             }
@@ -98,11 +99,11 @@ router.post('/username', (req, res) => {
 
                 if (err) return res.status(500).send('There was a problem finding the user.');
                 if (!user) return res.status(400).send('No user found');
-    
+
                 if (user.username) return res.status(400).send('Cannot update user with existing username.');
-    
+
                 else if (!user.username) {
-    
+
                     user.username = req.body.username;
 
                     user.save((err, result) => {
@@ -115,7 +116,7 @@ router.post('/username', (req, res) => {
                     });
                 }
             });
-        });        
+        });
     } else {
         res.status(400).json('Unauthorized access.');
     }

@@ -46,7 +46,7 @@ router.get('/mail', (req, res) => {
 });
 
 router.get('/accepted', (req, res) => {
-    console.log(req.user)
+    console.log('get accepted');
 
     if (req.user) {
         Punishment.find({
@@ -57,7 +57,8 @@ router.get('/accepted', (req, res) => {
             done: null
         }, (err, punishments) => {
             if (err) console.log(err);
-            if (punishments) {
+
+            else if (punishments) {
                 acceptedPunishments = JSON.parse(JSON.stringify(punishments));
                 let ids = punishments.map(punishment => {
                     return punishment.fk_user_uid_ordering_punishment;
@@ -68,18 +69,19 @@ router.get('/accepted', (req, res) => {
                     }
                     return res.status(200).json({ acceptedPunishments: acceptedPunishments });
                 });
-            }
+            } else if (!punishments) return res.json({ errorMsg: 'No punishments.' });
         });
     }
 
 });
 
 router.get('/past', (req, res) => {
+    console.log('get past');
 
     if (req.user) {
         Punishment.find({ fk_user_email_taking_punishment: req.user.email }, (err, punishments) => {
             if (err) return res.status(500).json({ errorMsg: 'Error on getting punishment data from database.' })
-            else if (!punishments) return res.status(500).json({ errorMsg: 'No punishments.' })
+
             else if (punishments && punishments.length > 0) {
                 let pastPunishments = JSON.parse(JSON.stringify(punishments));
                 let ids = pastPunishments.map(punishment => {
@@ -92,17 +94,18 @@ router.get('/past', (req, res) => {
                     }
                     return res.json({ pastPunishments: pastPunishments });
                 });
-            }
+            } else return res.json({ errorMsg: 'No punishments.' })
         });
     }
 });
 
 router.get('/ordered', (req, res) => {
+    console.log('get ordered');
 
     if (req.user) {
         Punishment.find({ fk_user_uid_ordering_punishment: req.user._id }, (err, punishments) => {
             if (err) return res.status(500).json({ errorMsg: 'Error on getting punishment data from database.' })
-            else if (!punishments) return res.status(500).json({ errorMsg: 'No punishments.' })
+
             else if (punishments && punishments.length > 0) {
                 let orderedPunishments = JSON.parse(JSON.stringify(punishments));
                 let userEmails = orderedPunishments.map(punishment => {
@@ -115,7 +118,7 @@ router.get('/ordered', (req, res) => {
 
                     return res.json({ orderedPunishments: orderedPunishments });
                 });
-            }
+            } else return res.json({ errorMsg: 'No punishments.' });
         })
     }
 });
@@ -218,21 +221,25 @@ router.post('/create', (req, res) => {
                 if (!user) {
                     return res.json({ errorMsg: 'User does not exist.' })
                 } else if (user) {
-                    // potrebno sejvat kaznu
+                    // potrebno sejvat kaznu,
                     let newPunishment = new Punishment({
                         fk_user_uid_ordering_punishment: userOrderingPunishment._id,
                         fk_user_email_taking_punishment: user.email,
                         how_many_times: punishmentData.howManyTimes,
                         deadline: punishmentData.deadlineDate === '' ? null : punishmentData.deadlineDate,
                         what_to_write: punishmentData.whatToWrite,
-                        why: punishmentData.why
+                        why: punishmentData.why                        
                     });
                     newPunishment.save((err, punishment) => {
                         if (err) {
                             return res.send({ errorMsg: 'Error on database entry' });
                         } else {
                             //console.log(punishment);
-                            res.json(punishment);
+                            let response = JSON.parse(JSON.stringify(punishment))
+                            response.user_taking_punishment = user.username;
+
+                            res.json(response);
+                            
                             sendNotification(req.body._id, user.email, punishment._id, constants.punishmentRequested);
                             return;
                         }
@@ -265,8 +272,11 @@ router.post('/create', (req, res) => {
                         if (err) {
                             return res.send({ errorMsg: 'Error on database entry' });
                         } else {
-                            //console.log(punishment);
-                            res.json(punishment);
+                            let response = JSON.parse(JSON.stringify(punishment))
+                            response.user_taking_punishment = user.username;
+
+                            res.json(response);
+                            
                             sendNotification(req.body._id, user.email, punishment._id, constants.punishmentRequested);
                             return;
                         }
