@@ -182,7 +182,7 @@ router.post('/log', (req, res) => {
 
 
 router.post('/done', (req, res) => {
-    console.log(req.body);
+    console.log('DONE');
     if (req.user) {
         Punishment.findById(req.body.id, (err, punishment) => {
             if (err) return res.status(500).json('There was a problem finding the punishment.');

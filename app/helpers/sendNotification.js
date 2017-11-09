@@ -43,6 +43,8 @@ function sendMail(receiverMail, notificationType, mailContent) {
 
 const notifyUser = (senderId, receivingEmail, punishmentId, notificationType) => {
 
+    if(!receivingEmail) return;
+
     let notificationContent = 0;
     let sender = 0;
     let punishment = 0;
