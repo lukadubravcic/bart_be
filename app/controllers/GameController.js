@@ -46,7 +46,6 @@ router.get('/mail', (req, res) => {
 });
 
 router.get('/accepted', (req, res) => {
-    console.log('get accepted');
 
     if (req.user) {
         Punishment.find({
@@ -58,7 +57,7 @@ router.get('/accepted', (req, res) => {
         }, (err, punishments) => {
             if (err) console.log(err);
 
-            else if (punishments) {
+            else if (punishments && punishments.length > 0) {
                 acceptedPunishments = JSON.parse(JSON.stringify(punishments));
                 let ids = punishments.map(punishment => {
                     return punishment.fk_user_uid_ordering_punishment;
@@ -69,14 +68,13 @@ router.get('/accepted', (req, res) => {
                     }
                     return res.status(200).json({ acceptedPunishments: acceptedPunishments });
                 });
-            } else if (!punishments) return res.json({ errorMsg: 'No punishments.' });
+            } else return res.json({ errorMsg: 'No punishments.' });
         });
     }
 
 });
 
 router.get('/past', (req, res) => {
-    console.log('get past');
 
     if (req.user) {
         Punishment.find({ fk_user_email_taking_punishment: req.user.email }, (err, punishments) => {
@@ -100,7 +98,6 @@ router.get('/past', (req, res) => {
 });
 
 router.get('/ordered', (req, res) => {
-    console.log('get ordered');
 
     if (req.user) {
         Punishment.find({ fk_user_uid_ordering_punishment: req.user._id }, (err, punishments) => {
