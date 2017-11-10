@@ -98,7 +98,7 @@ router.get('/past', (req, res) => {
 });
 
 router.get('/ordered', (req, res) => {
-
+    
     if (req.user) {
         Punishment.find({ fk_user_uid_ordering_punishment: req.user._id }, (err, punishments) => {
             if (err) return res.status(500).json({ errorMsg: 'Error on getting punishment data from database.' })

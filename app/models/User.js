@@ -6,7 +6,9 @@ const UserSchema = new Schema({
     username: {
         type: String,
         trim: true,
-        required: true
+        required: true,
+        unique: true,
+        index: { unique: true }
     },
     email: {
         type: String,
@@ -22,6 +24,14 @@ const UserSchema = new Schema({
     created: {
         type: Date,
         default: Date.now
+    },
+    confirmed: {
+        type: Date,
+        default: null
+    },
+    invited_by: {
+        type: String, 
+        default: null
     }
 }, { strict: true });
 

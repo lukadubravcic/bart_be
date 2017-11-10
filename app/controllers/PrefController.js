@@ -7,6 +7,7 @@ const Pref = require('../models/Pref');
 router.use(bodyParser.urlencoded({ extended: true }));
 
 router.post('/update', (req, res) => {
+    
     if (req.user) {
         Pref.findOne({ fk_user_uid: req.user._id }, (err, pref) => {
             if (err) return res.status(500).json('There was a probem finding preferences.');
@@ -20,7 +21,7 @@ router.post('/update', (req, res) => {
                 return res.status(200).json('Preferences updated');
             });
         });
-    }
+    } else return res.status(400);
 });
 
 module.exports = router;
