@@ -12,7 +12,7 @@ const User = require('../models/User');
 const Pref = require('../models/Pref');
 
 router.post('/login', (req, res) => {
-
+    console.log(req.body)
     User.findOne({ email: req.body.email }, (err, user) => {
         if (err) return res.status(500).send({ message: err });
         if (!user) {

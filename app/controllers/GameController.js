@@ -14,6 +14,8 @@ const sendNotification = require('../helpers/sendNotification');
 const User = require('../models/User');
 const Punishment = require('../models/Punishment');
 const Try = require('../models/Try');
+const SpecialPunishment = require('../models/SpecialPunishment');
+const RandomPunishment = require('../models/RandomPunishment');
 
 const constants = require('../config/constants');
 const BART_MAIL = constants.BART_MAIL;
@@ -25,9 +27,54 @@ router.use(bodyParser.urlencoded({ extended: true }));
     next();
 }); */
 
+router.get('/accept', (req, res) => {
+    console.log(req.query.id)
+
+    
+    if (req.query.id) {
+        Punishment.findById(req.query.id, (err, punishment) => {
+
+            if (err) return res.status(500).send('There was a problem finding punishment.');
+            if (!punishment) return res.status(400).send('Punishment with that ID does not exist.');
+            if (punishment.accepted) return res.status(400).send('Punishment already accepted.');
+
+            punishment.accepted = Date.now();
+            punishment.save((err, punishment) => {
+                if (err) return res.status(500).send('There was a problem with setting punishment accepted.');
+
+                //tmp:
+                res.redirect('http://localhost:3000'+'?id='+punishment._id);
+
+                // TODO: REDIREKT NA RUTU GDJE SE POSLUZUJE APP
+            });
+        });
+    } else return res.status(400).send('Punishment ID isnt privided.')
+});
+
 router.get('/test', (req, res) => {
 
     sendNotification(req.user._id, '59ce445117dc67248c637138', '59d4c81d31fa990f180e5269', 'signup');
+
+});
+
+router.get('/random', (req, res) => {
+
+    console.log(req.body)
+    RandomPunishment.find({}, (err, punishments) => {
+        if (err) return res.status(500).send('There was a problem finding random punishments.')
+
+        res.json(punishments);
+    });
+
+});
+
+router.get('/special', (req, res) => {
+
+    SpecialPunishment.find({}, (err, punishments) => {
+        if (err) return res.status(500).send('There was a problem finding special punishments.')
+
+        res.json(punishments);
+    });
 
 });
 
@@ -98,7 +145,7 @@ router.get('/past', (req, res) => {
 });
 
 router.get('/ordered', (req, res) => {
-    
+
     if (req.user) {
         Punishment.find({ fk_user_uid_ordering_punishment: req.user._id }, (err, punishments) => {
             if (err) return res.status(500).json({ errorMsg: 'Error on getting punishment data from database.' })
@@ -225,7 +272,7 @@ router.post('/create', (req, res) => {
                         how_many_times: punishmentData.howManyTimes,
                         deadline: punishmentData.deadlineDate === '' ? null : punishmentData.deadlineDate,
                         what_to_write: punishmentData.whatToWrite,
-                        why: punishmentData.why                        
+                        why: punishmentData.why
                     });
                     newPunishment.save((err, punishment) => {
                         if (err) {
@@ -236,7 +283,7 @@ router.post('/create', (req, res) => {
                             response.user_taking_punishment = user.username;
 
                             res.json(response);
-                            
+
                             sendNotification(req.body._id, user.email, punishment._id, constants.punishmentRequested);
                             return;
                         }
@@ -273,7 +320,7 @@ router.post('/create', (req, res) => {
                             response.user_taking_punishment = user.username;
 
                             res.json(response);
-                            
+
                             sendNotification(req.body._id, user.email, punishment._id, constants.punishmentRequested);
                             return;
                         }

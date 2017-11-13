@@ -26,8 +26,8 @@ function sendMail(receiverMail, notificationType, mailContent) {
     let from = BART_MAIL;
     let to = receiverMail;
     let subject = getMailSubject(notificationType);
-    // console.log(from ,to ,subject, mailContent);
-
+    console.log(mailContent);
+    
     sendmail({
         from: from,
         to: receiverMail,
@@ -43,7 +43,7 @@ function sendMail(receiverMail, notificationType, mailContent) {
 
 const notifyUser = (senderId, receivingEmail, punishmentId, notificationType) => {
 
-    if(!receivingEmail) return;
+    if (!receivingEmail) return;
 
     let notificationContent = 0;
     let sender = 0;
@@ -98,39 +98,40 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType) =>
 function createNotificationContent(data) {
 
     switch (data.notificationType) {
+
         case constants.signup:
             return emailNotificationCreators.signUpConfirmation();
-            break;
+
         case constants.passwordResetConfirmation:
             return emailNotificationCreators.passwordResetConfirmation(resetPwdLink);
-            break;
+
         case constants.newPassword:
             return emailNotificationCreators.newPassword(temporaryPwd, changePwdLink);
-            break;
+
         case constants.punishmentRequested:
-            return emailNotificationCreators.punishment(data.punishment.why, APP_LINK);
-            break;
+            return emailNotificationCreators.punishment(data.punishment.why, APP_LINK + "/punishment/accept?id=" + data.punishment._id);
+
         case constants.punishmentAccepted:
             return emailNotificationCreators.accepted(data.punishment.why);
-            break;
+
         case constants.punishmentRejected:
             return emailNotificationCreators.rejected(data.punishment.why);
-            break;
+
         case constants.punishmentIgnored:
             return emailNotificationCreators.ignored(data.punishment.why);
-            break;
+
         case constants.notifyTrying:
             return emailNotificationCreators.trying(data.sender.username, data.punishment.why);
-            break;
+
         case constants.notifyDone:
             return emailNotificationCreators.done(data.sender.username, data.punishment.why);
-            break;
+
         case constants.notifyFailed:
             return emailNotificationCreators.failed(data.sender.username, data.punishment.why);
-            break;
+
         case constants.punishmentGivenUp:
             return emailNotificationCreators.givenUp(data.sender.username, data.punishment.why);
-            break;
+
         default:
             return null;
     }
@@ -138,39 +139,40 @@ function createNotificationContent(data) {
 
 function getMailSubject(notificationType) {
     switch (notificationType) {
+
         case 'signup':
             return 'Signing up';
-            break;
+
         case 'password_reset_confirmation':
             return 'Confirmation for password reset';
-            break;
+
         case 'new_password':
             return 'New password';
-            break;
+
         case 'punishment_requested':
             return 'New punishment';
-            break;
+
         case 'punishment_accepted':
             return 'Punishment accepted';
-            break;
+
         case 'punishment_rejected':
             return 'Punishment rejected';
-            break;
+
         case 'punishment_ignored':
             return 'Punishment ignored';
-            break;
+
         case 'punishment_given_up':
             return 'Punishment given up';
-            break;
+
         case 'notify_trying':
             return 'Punishment tried';
-            break;
+
         case 'notify_done':
             return 'Punishment finished';
-            break;
+
         case 'notify_failed':
             return 'Punishment failed';
-            break;
+
         default:
             return null;
     }
