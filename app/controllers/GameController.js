@@ -28,9 +28,7 @@ router.use(bodyParser.urlencoded({ extended: true }));
 }); */
 
 router.get('/accept', (req, res) => {
-    console.log(req.query.id)
 
-    
     if (req.query.id) {
         Punishment.findById(req.query.id, (err, punishment) => {
 
@@ -43,7 +41,7 @@ router.get('/accept', (req, res) => {
                 if (err) return res.status(500).send('There was a problem with setting punishment accepted.');
 
                 //tmp:
-                res.redirect('http://localhost:3000'+'?id='+punishment._id);
+                res.redirect('http://localhost:3000' + '?id=' + punishment._id);
 
                 // TODO: REDIREKT NA RUTU GDJE SE POSLUZUJE APP
             });
@@ -58,8 +56,7 @@ router.get('/test', (req, res) => {
 });
 
 router.get('/random', (req, res) => {
-
-    console.log(req.body)
+    
     RandomPunishment.find({}, (err, punishments) => {
         if (err) return res.status(500).send('There was a problem finding random punishments.')
 
