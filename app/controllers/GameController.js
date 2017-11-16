@@ -10,6 +10,7 @@ const sendmail = require('sendmail')({
     }
 });
 const sendNotification = require('../helpers/sendNotification');
+const filterAcceptedPunishments = require('../helpers/filterAcceptedPunishments');
 
 const User = require('../models/User');
 const Punishment = require('../models/Punishment');
@@ -46,7 +47,7 @@ router.get('/accept', (req, res) => {
                 // TODO: REDIREKT NA RUTU GDJE SE POSLUZUJE APP
             });
         });
-    } else return res.status(400).send('Punishment ID isnt privided.')
+    } else return res.status(400).send('Punishment ID isn\'t privided.')
 });
 
 router.get('/test', (req, res) => {
@@ -56,7 +57,7 @@ router.get('/test', (req, res) => {
 });
 
 router.get('/random', (req, res) => {
-    
+
     RandomPunishment.find({}, (err, punishments) => {
         if (err) return res.status(500).send('There was a problem finding random punishments.')
 
@@ -97,12 +98,15 @@ router.get('/accepted', (req, res) => {
             accepted: { $exists: true, $ne: null },
             given_up: null,
             failed: null,
+            rejected: null,
             done: null
         }, (err, punishments) => {
             if (err) console.log(err);
 
             else if (punishments && punishments.length > 0) {
-                acceptedPunishments = JSON.parse(JSON.stringify(punishments));
+
+                acceptedPunishments = JSON.parse(JSON.stringify(filterAcceptedPunishments(punishments)));
+
                 let ids = punishments.map(punishment => {
                     return punishment.fk_user_uid_ordering_punishment;
                 });
