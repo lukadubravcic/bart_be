@@ -11,6 +11,7 @@ const sendmail = require('sendmail')({
 });
 const sendNotification = require('../helpers/sendNotification');
 const filterAcceptedPunishments = require('../helpers/filterAcceptedPunishments');
+const validPunishmentWhatToWriteKeys = require('../helpers/validPunishmentChars');
 
 const User = require('../models/User');
 const Punishment = require('../models/Punishment');
@@ -228,7 +229,6 @@ router.post('/log', (req, res) => {
     }
 });
 
-
 router.post('/done', (req, res) => {
     console.log('DONE');
     if (req.user) {
@@ -257,10 +257,13 @@ router.post('/create', (req, res) => {
     console.log(punishmentData)
     if (req.user) { // if user logged in
 
+        if (!isPunishmentValid(punishmentData)) return res.json({ errorMsg: 'Punishment not valid. Try again.' });
 
+        punishmentData.whatToWrite = punishmentData.whatToWrite.trim();
+        punishmentData.why = punishmentData.why.trim();
         // ako je poslan username
         if (punishmentData.whomUsername && punishmentData.whatToWrite) {
-
+            console.log(punishmentData.whomUsername)
             User.findOne({ username: punishmentData.whomUsername }, (err, user) => {
                 if (err) return res.send({ errorMsg: 'Error on finding desired user' });
                 if (!user) {
@@ -359,8 +362,6 @@ function getUsernameFromPunishmentByEmail(receivingUserEmail, users) {
     return null
 }
 
-
-
 function sendMail(from, to, subject, mailContent) {
 
     sendmail({
@@ -381,4 +382,34 @@ function notifyUser(senderId, receiveingId, notificationType) {
             //posalji mail
         }
     })
+}
+
+function isPunishmentValid(punishment) {
+
+    // check range 
+    if (punishment.howManyTimes < 1 && punishment.howManyTimes > 999) return false;
+
+    // check if deadline is mimimum tomorrow
+    else if (punishment.deadlineDate !== ' ') {
+
+        let tomorrowDate = new Date();
+        tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+        tomorrowDate.setHours(0)
+        tomorrowDate.setMinutes(0);
+
+        if ((new Date(parseInt(punishment.deadlineDate)).getTime()) < (tomorrowDate.getTime())) {
+            return false;
+        }
+    }
+
+    // whatToWrite check
+    for (let i = 0; i < punishment.whatToWrite.length; i++) {
+
+        if (validPunishmentWhatToWriteKeys.indexOf(punishment.whatToWrite[i]) === -1) return false;
+    }
+
+    // check if why field is set, and if it is length must be lower than 500 chars
+    if (punishment.why !== '' && punishment.why.length > 500) return false;
+
+    return true;
 }
