@@ -263,7 +263,7 @@ router.post('/create', (req, res) => {
         punishmentData.why = punishmentData.why.trim();
         // ako je poslan username
         if (punishmentData.whomUsername && punishmentData.whatToWrite) {
-            console.log(punishmentData.whomUsername)
+
             User.findOne({ username: punishmentData.whomUsername }, (err, user) => {
                 if (err) return res.send({ errorMsg: 'Error on finding desired user' });
                 if (!user) {
@@ -403,6 +403,8 @@ function isPunishmentValid(punishment) {
     }
 
     // whatToWrite check
+    if (punishment.whatToWrite.length > 100 || punishment.whatToWrite.length === 0) return false;
+    
     for (let i = 0; i < punishment.whatToWrite.length; i++) {
 
         if (validPunishmentWhatToWriteKeys.indexOf(punishment.whatToWrite[i]) === -1) return false;

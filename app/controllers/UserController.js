@@ -11,8 +11,19 @@ router.use(bodyParser.urlencoded({ extended: true }));
 const User = require('../models/User');
 const Pref = require('../models/Pref');
 
+const EMAIL_MAX_LEN = 50;
+const EMAIL_MIN_LEN = 5;
+const PASSWORD_MAX_LEN = 20;
+const PASSWORD_MIN_LEN = 3;
+const USERNAME_MAX_LEN = 20;
+const USERNAME_MIN_LEN = 4;
+
+
+
 router.post('/login', (req, res) => {
-    console.log(req.body)
+
+    if (!validateLogin(req.body)) return res.status(400).send('Validation error.')
+
     User.findOne({ email: req.body.email }, (err, user) => {
         if (err) return res.status(500).send({ message: err });
         if (!user) {
@@ -37,7 +48,8 @@ router.post('/login', (req, res) => {
 
 router.post('/register', (req, res) => {
 
-    console.log(req.body);
+    if (!validateRegister(req.body)) return res.json('Validation error.');
+
     let newUser = new User(req.body);
     newUser.hash_password = bcrypt.hashSync(req.body.password, 10);
 
@@ -148,3 +160,32 @@ router.put('/:id', (req, res) => {
 });
 
 module.exports = router;
+
+
+function validateLogin(loginData) {
+    console.log(loginData)
+    // email
+    if (loginData.email.length < EMAIL_MIN_LEN || loginData.email.length > EMAIL_MAX_LEN) return false;
+    //password
+    else if (loginData.password.length < PASSWORD_MIN_LEN || loginData.email.length > PASSWORD_MAX_LEN) return false;
+
+    return true;
+}
+
+function validateRegister(registerData) {
+
+    console.log(registerData);
+    if (registerData.username.length < USERNAME_MIN_LEN || registerData.username.length > PASSWORD_MAX_LEN) return false;
+
+    else if ((registerData.email.length < EMAIL_MIN_LEN || registerData.email.length > EMAIL_MAX_LEN) && !isMail(registerData.email)) return false;
+
+    else if (registerData.password.length < PASSWORD_MIN_LEN || registerData.password.length > PASSWORD_MAX_LEN) return false;
+
+    return true;
+}
+
+function isMail(email) {
+    var re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    return re.test(email);
+}
+
