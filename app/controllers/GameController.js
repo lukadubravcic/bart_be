@@ -196,7 +196,9 @@ router.post('/giveup', (req, res) => {
 });
 
 router.post('/log', (req, res) => {
-
+    console.log('---------------------------');
+    console.log(req.user);
+    console.log(req.body);
     if (req.user) {
         Punishment.findById(req.body.id, (err, punishment) => {
 
@@ -208,7 +210,7 @@ router.post('/log', (req, res) => {
                 fk_punishment_uid: req.body.id,
                 time_spent: req.body.timeSpent
             });
-
+            // check here
             newTry.save((err, result) => {
                 if (err) return res.status(500).json('Error on saving try.');
 
@@ -226,7 +228,7 @@ router.post('/log', (req, res) => {
                 });
             });
         });
-    }
+    } else return res.status(400);
 });
 
 router.post('/done', (req, res) => {
@@ -404,7 +406,7 @@ function isPunishmentValid(punishment) {
 
     // whatToWrite check
     if (punishment.whatToWrite.length > 100 || punishment.whatToWrite.length === 0) return false;
-    
+
     for (let i = 0; i < punishment.whatToWrite.length; i++) {
 
         if (validPunishmentWhatToWriteKeys.indexOf(punishment.whatToWrite[i]) === -1) return false;
@@ -415,3 +417,5 @@ function isPunishmentValid(punishment) {
 
     return true;
 }
+
+

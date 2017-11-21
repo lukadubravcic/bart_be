@@ -21,29 +21,30 @@ const USERNAME_MIN_LEN = 4;
 
 
 router.post('/login', (req, res) => {
+    setTimeout(() => {
+        if (!validateLogin(req.body)) return res.status(400).send('Validation error.')
 
-    if (!validateLogin(req.body)) return res.status(400).send('Validation error.')
-
-    User.findOne({ email: req.body.email }, (err, user) => {
-        if (err) return res.status(500).send({ message: err });
-        if (!user) {
-            return res.status(404).json({ message: "User not found." });
-        } else if (user) {
-            if (!user.comparePassword(req.body.password)) {
-                return res.status(401).json({ message: "Authentication failed. Wrong password." });
-            } else {
-                Pref.findOne({ fk_user_uid: user._id }, (err, pref) => {
-                    return res.json({
-                        token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'),
-                        username: user.username,
-                        email: user.email,
-                        _id: user._id,
-                        prefs: pref
+        User.findOne({ email: req.body.email }, (err, user) => {
+            if (err) return res.status(500).send({ message: err });
+            if (!user) {
+                return res.status(404).json({ message: "User not found." });
+            } else if (user) {
+                if (!user.comparePassword(req.body.password)) {
+                    return res.status(401).json({ message: "Authentication failed. Wrong password." });
+                } else {
+                    Pref.findOne({ fk_user_uid: user._id }, (err, pref) => {
+                        return res.json({
+                            token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'),
+                            username: user.username,
+                            email: user.email,
+                            _id: user._id,
+                            prefs: pref
+                        });
                     });
-                });
+                }
             }
-        }
-    });
+        });
+    }, 1000);
 });
 
 router.post('/register', (req, res) => {
@@ -56,7 +57,7 @@ router.post('/register', (req, res) => {
     newUser.save((err, user) => {
         if (err) {
             if (err.code === 11000) {
-                return res.json({ errUserExist: 'User with that email exists.' });
+                return res.json({ errMsg: 'User with that email exists.' });
             }
             return res.status(400).send({
                 message: err
@@ -66,7 +67,7 @@ router.post('/register', (req, res) => {
             let newPref = new Pref();
             newPref.fk_user_uid = user._id;
             newPref.save((err, pref) => {
-                if (err) return res.status(500).json('There was a problem while creating new user.');
+                if (err) return res.json({ errMsg: 'There was a problem while creating new user.' });
                 res.json(user);
             });
             return sendNotification(req.body._id, user.email, 0, constants.signup);
