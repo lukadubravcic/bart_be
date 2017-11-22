@@ -19,18 +19,17 @@ const USERNAME_MAX_LEN = 20;
 const USERNAME_MIN_LEN = 4;
 
 
-
 router.post('/login', (req, res) => {
     setTimeout(() => {
         if (!validateLogin(req.body)) return res.status(400).send('Validation error.')
 
         User.findOne({ email: req.body.email }, (err, user) => {
-            if (err) return res.status(500).send({ message: err });
+            if (err) return res.json({ message: "Server error" });
             if (!user) {
-                return res.status(404).json({ message: "User not found." });
+                return res.json({ message: "User not found." });
             } else if (user) {
                 if (!user.comparePassword(req.body.password)) {
-                    return res.status(401).json({ message: "Authentication failed. Wrong password." });
+                    return res.json({ message: "Authentication failed. Wrong password." });
                 } else {
                     Pref.findOne({ fk_user_uid: user._id }, (err, pref) => {
                         return res.json({
@@ -97,30 +96,30 @@ router.get('/', (req, res) => {
 
 
 router.post('/username', (req, res) => {
-
+    
     if (req.user && req.body.username) {
 
         User.findOne({ username: req.body.username }, (err, user) => {
 
-            if (err) return res.status(500).send('There was a problem finding the user.');
+            if (err) return res.json({ errMsg: 'There was a problem finding the user.' });
             if (user) {
                 // user postoji
-                return res.status(400).send('User with that username exists.');
+                return res.json({errMsg: 'Username taken.'});
             }
             // user doesnt exist (username not taken)
             User.findById(req.user._id, (err, user) => {
 
-                if (err) return res.status(500).send('There was a problem finding the user.');
-                if (!user) return res.status(400).send('No user found');
+                if (err) return res.json({ errMsg: 'There was a problem finding the user.' });
+                if (!user) return res.json({ errMsg: 'No user found' });
 
-                if (user.username) return res.status(400).send('Cannot update user with existing username.');
+                if (user.username) return res.json({ errMsg: 'Cannot update user with existing username.' });
 
                 else if (!user.username) {
 
                     user.username = req.body.username;
 
                     user.save((err, result) => {
-                        if (err) return res.status(500).send('Error on saving username.');
+                        if (err) return res.json({ errMsg: 'Error on saving username.' });
                         return res.send({
                             _id: user._id,
                             email: user.email,
@@ -135,7 +134,8 @@ router.post('/username', (req, res) => {
     }
 });
 
-router.get('/:id', (req, res) => {
+
+/* router.get('/:id', (req, res) => {
 
     User.findById(req.params.id, (err, user) => {
         if (err) return res.status(500).send("There was a problem finding the user.");
@@ -158,7 +158,7 @@ router.put('/:id', (req, res) => {
         if (err) return res.status(500).send("There was a problem updating the user.");
         res.status(200).send(user);
     });
-});
+}); */
 
 module.exports = router;
 

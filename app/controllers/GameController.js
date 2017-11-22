@@ -171,17 +171,20 @@ router.get('/ordered', (req, res) => {
 
 router.post('/giveup', (req, res) => {
 
-    let punishmentId = req.body.punishmentId;
-    console.log(punishmentId)
+    const punishmentId = req.body.punishmentId;
 
-    Punishment.findById(punishmentId, (err, punishment) => {
-        if (err) {
-            console.log(err)
-            return;
-        }
-        if (!punishment) {
-            res.status(400).json('Punishment not found.');
-        } else {
+    if (req.user) {
+        Punishment.findById(punishmentId, (err, punishment) => {
+            if (err) {
+                console.log(err)
+                return;
+            }
+            if (!punishment) {
+                return res.status(400).json('Punishment not found.');
+            }
+
+            if (punishment.fk_user_email_taking_punishment !== req.user.email) return res.status(400).json('This is not your punishment');
+
             punishment.given_up = Date.now();
             punishment.save();
             res.json('Your act of weakness is submited');
@@ -189,10 +192,8 @@ router.post('/giveup', (req, res) => {
             User.findById(punishment.fk_user_uid_ordering_punishment, (err, user) => {
                 if (user) sendNotification(req.body._id, user.email, punishment._id, constants.punishmentGivenUp);
             });
-
-            return;
-        }
-    })
+        });
+    }
 });
 
 router.post('/log', (req, res) => {
@@ -205,6 +206,8 @@ router.post('/log', (req, res) => {
             if (err) return res.status(500).json('There was a problem finding the punishment.');
 
             if (!punishment) return res.status(400).json('Punisment does not exist.');
+
+            if (punishment.fk_user_email_taking_punishment !== req.user.email) return res.status(400).json('This is not your punishment');
 
             let newTry = new Try({
                 fk_punishment_uid: req.body.id,
@@ -228,7 +231,8 @@ router.post('/log', (req, res) => {
                 });
             });
         });
-    } else return res.status(400);
+
+    } else return res.status(400).send('Not authorized.');
 });
 
 router.post('/done', (req, res) => {
@@ -237,6 +241,7 @@ router.post('/done', (req, res) => {
         Punishment.findById(req.body.id, (err, punishment) => {
             if (err) return res.status(500).json('There was a problem finding the punishment.');
             if (!punishment) return res.status(400).json('Punishment does not exist.')
+            if (punishment.fk_user_email_taking_punishment !== req.user.email) return res.status(400).json('This is not your punishment.');
             punishment.done = Date.now();
             punishment.save((err, punishment) => {
                 if (err) return res.status(500).json('There was a problem saving the punishment.');

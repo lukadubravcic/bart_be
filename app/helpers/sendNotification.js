@@ -26,7 +26,7 @@ function sendMail(receiverMail, notificationType, mailContent) {
     let from = BART_MAIL;
     let to = receiverMail;
     let subject = getMailSubject(notificationType);
-    console.log(mailContent);
+    console.log(`Mail to: ${receiverMail}`);
     
     sendmail({
         from: from,
