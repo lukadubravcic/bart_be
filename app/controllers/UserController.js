@@ -96,15 +96,17 @@ router.get('/', (req, res) => {
 
 
 router.post('/username', (req, res) => {
-    
+
     if (req.user && req.body.username) {
+
+        if (!validUsername(req.body.username)) return res.json(400, { errMsg: 'Username not valid.' });
 
         User.findOne({ username: req.body.username }, (err, user) => {
 
             if (err) return res.json({ errMsg: 'There was a problem finding the user.' });
             if (user) {
                 // user postoji
-                return res.json({errMsg: 'Username taken.'});
+                return res.json({ errMsg: 'Username taken.' });
             }
             // user doesnt exist (username not taken)
             User.findById(req.user._id, (err, user) => {
@@ -166,9 +168,9 @@ module.exports = router;
 function validateLogin(loginData) {
     console.log(loginData)
     // email
-    if (loginData.email.length < EMAIL_MIN_LEN || loginData.email.length > EMAIL_MAX_LEN) return false;
+    if (!validEmail(loginData.email)) return false;
     //password
-    else if (loginData.password.length < PASSWORD_MIN_LEN || loginData.email.length > PASSWORD_MAX_LEN) return false;
+    else if (!validPassword(loginData.password)) return false;
 
     return true;
 }
@@ -176,11 +178,11 @@ function validateLogin(loginData) {
 function validateRegister(registerData) {
 
     console.log(registerData);
-    if (registerData.username.length < USERNAME_MIN_LEN || registerData.username.length > PASSWORD_MAX_LEN) return false;
+    if (!validUsername(registerData.username)) return false;
 
-    else if ((registerData.email.length < EMAIL_MIN_LEN || registerData.email.length > EMAIL_MAX_LEN) && !isMail(registerData.email)) return false;
+    else if (!validEmail(registerData.email)) return false;
 
-    else if (registerData.password.length < PASSWORD_MIN_LEN || registerData.password.length > PASSWORD_MAX_LEN) return false;
+    else if (!validPassword(registerData.password)) return false;
 
     return true;
 }
@@ -189,4 +191,20 @@ function isMail(email) {
     var re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(email);
 }
+
+function validUsername(username) {
+    if (username.length < USERNAME_MIN_LEN || username.length > PASSWORD_MAX_LEN) return false;
+    return true;
+}
+
+function validEmail(email) {
+    if ((email.length < EMAIL_MIN_LEN || email.length > EMAIL_MAX_LEN) && !isMail(email)) return false;
+    return true;
+}
+
+function validPassword(password) {
+    if (password.length < PASSWORD_MIN_LEN || password.length > PASSWORD_MAX_LEN) return false;
+    return true;
+}
+
 
