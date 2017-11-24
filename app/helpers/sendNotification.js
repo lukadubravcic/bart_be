@@ -53,6 +53,7 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType) =>
 
     senderId ? queries.push(getUser(senderId)) : queries.push(null);
     punishmentId ? queries.push(getPunishment(punishmentId)) : queries.push(null);
+    // i receiver data
 
 
     Promise.all(queries).then(queryData => {

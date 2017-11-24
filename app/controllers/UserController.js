@@ -20,6 +20,7 @@ const USERNAME_MIN_LEN = 4;
 
 
 router.post('/login', (req, res) => {
+    return res.json({ message: "Server error" });
     setTimeout(() => {
         if (!validateLogin(req.body)) return res.status(400).send('Validation error.')
 
