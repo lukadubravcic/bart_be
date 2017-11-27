@@ -20,31 +20,29 @@ const USERNAME_MIN_LEN = 4;
 
 
 router.post('/login', (req, res) => {
-    return res.json({ message: "Server error" });
-    setTimeout(() => {
-        if (!validateLogin(req.body)) return res.status(400).send('Validation error.')
 
-        User.findOne({ email: req.body.email }, (err, user) => {
-            if (err) return res.json({ message: "Server error" });
-            if (!user) {
-                return res.json({ message: "User not found." });
-            } else if (user) {
-                if (!user.comparePassword(req.body.password)) {
-                    return res.json({ message: "Authentication failed. Wrong password." });
-                } else {
-                    Pref.findOne({ fk_user_uid: user._id }, (err, pref) => {
-                        return res.json({
-                            token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'),
-                            username: user.username,
-                            email: user.email,
-                            _id: user._id,
-                            prefs: pref
-                        });
+    if (!validateLogin(req.body)) return res.status(400).send('Validation error.')
+
+    User.findOne({ email: req.body.email }, (err, user) => {
+        if (err) return res.json({ message: "Server error" });
+        if (!user) {
+            return res.json({ message: "User not found." });
+        } else if (user) {
+            if (!user.comparePassword(req.body.password)) {
+                return res.json({ message: "Authentication failed. Wrong password." });
+            } else {
+                Pref.findOne({ fk_user_uid: user._id }, (err, pref) => {
+                    return res.json({
+                        token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'),
+                        username: user.username,
+                        email: user.email,
+                        _id: user._id,
+                        prefs: pref
                     });
-                }
+                });
             }
-        });
-    }, 1000);
+        }
+    });
 });
 
 router.post('/register', (req, res) => {
@@ -135,6 +133,27 @@ router.post('/username', (req, res) => {
     } else {
         res.status(400).json('Unauthorized access.');
     }
+});
+
+router.post('/setNewPassword', (req, res) => {
+    console.log(req.body);
+
+    if (req.user) {
+        User.findById(req.user._id, (err, user) => {
+            if (err) return res.json({ message: 'Server error. Try again.' });
+            else if (!user) return res.json({ message: 'Invalid action.' });
+            else if (!user.comparePassword(req.body.currentPassword)) return res.json({ message: 'Authentication failed. Wrong password.' });
+            else if (req.body.newPassword !== req.body.reNewPassword) return res.json({ message: 'Provided passwords don\'t match' });
+            else if (!validPassword(req.body.newPassword)) return res.json({ message: 'New password invalid.' });
+
+            user.hash_password = bcrypt.hashSync(req.body.newPassword, 10);
+            user.save((err, result) => {
+                console.log(`pwd changed: ${result}`)
+                if (err) return res.json({ message: 'Server error. Try again.' });
+                return res.json({ message: 'Password changed.' });
+            });
+        });
+    } else return res.json({ message: 'Unauthorized access.' });
 });
 
 

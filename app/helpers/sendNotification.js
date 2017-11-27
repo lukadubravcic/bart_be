@@ -21,7 +21,7 @@ const APP_LINK = constants.APP_ADRRESS //'localhost:8000';
 const userPrefNotifications = [constants.notifyFailed, constants.notifyDone, constants.notifyTrying];
 
 
-function sendMail(receiverMail, notificationType, mailContent) {
+function sendEmail(receiverMail, notificationType, mailContent) {
 
     let from = BART_MAIL;
     let to = receiverMail;
@@ -72,7 +72,7 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType) =>
                     });
                 }
                 if (notificationContent) {
-                    sendMail(receivingEmail, notificationType, notificationContent);
+                    sendEmail(receivingEmail, notificationType, notificationContent);
                 }
             });
         } else { // ostale notifikacije
@@ -86,7 +86,7 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType) =>
             // console.log(notificationContent);
 
             if (notificationContent) {
-                sendMail(receivingEmail, notificationType, notificationContent);
+                sendEmail(receivingEmail, notificationType, notificationContent);
             };
 
         }
