@@ -254,11 +254,10 @@ router.post('/done', (req, res) => {
                 return;
             });
         });
-    }
+    } else return res.status(400).send('Not authorized.');
 });
 
 router.post('/create', (req, res) => {
-
     let punishmentData = req.body;
     let userOrderingPunishment = req.user;
     console.log(punishmentData)
@@ -342,7 +341,7 @@ router.post('/create', (req, res) => {
         } else {
             res.status(400).json('Punishment misses data.');
         }
-    }
+    } else return res.status(400).send('Not authorized.');
 });
 
 module.exports = router;

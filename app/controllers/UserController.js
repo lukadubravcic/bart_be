@@ -148,12 +148,12 @@ router.post('/setNewPassword', (req, res) => {
 
             user.hash_password = bcrypt.hashSync(req.body.newPassword, 10);
             user.save((err, result) => {
-                console.log(`pwd changed: ${result}`)
                 if (err) return res.json({ message: 'Server error. Try again.' });
                 return res.json({ message: 'Password changed.' });
             });
         });
     } else return res.json({ message: 'Unauthorized access.' });
+
 });
 
 
