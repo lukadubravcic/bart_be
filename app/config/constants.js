@@ -1,10 +1,10 @@
 module.exports = {
 
     BART_MAIL:'Bart@barted.com',
-    APP_ADRRESS: 'localhost:8000',
+    APP_ADRRESS: 'http://localhost:8000',
 
-    signup: 'signup',
     passwordResetConfirmation: 'password_reset_confirmation',
+    signup: 'signup',
     newPassword: 'new_password',
     punishmentRequested: 'punishment_requested',
     punishmentAccepted: 'punishment_accepted',
@@ -13,5 +13,9 @@ module.exports = {
     punishmentGivenUp: 'punishment_given_up',
     notifyTrying: 'notify_trying',
     notifyDone: 'notify_done',
-    notifyFailed: 'notify_failed'
+    notifyFailed: 'notify_failed',
+
+    loginEvent: 'LOGIN',
+    logoutEvent: 'LOGOUT',
+    resetPasswordEvent: 'PASSWORD_RESET'
 }

@@ -43,7 +43,7 @@ router.get('/accept', (req, res) => {
                 if (err) return res.status(500).send('There was a problem with setting punishment accepted.');
 
                 //tmp:
-                res.redirect('http://localhost:3000' + '?id=' + punishment._id);
+                res.redirect(constants.APP_ADRRESS + '?id=' + punishment._id);
 
                 // TODO: REDIREKT NA RUTU GDJE SE POSLUZUJE APP
             });

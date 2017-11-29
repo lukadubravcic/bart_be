@@ -1,4 +1,4 @@
-const credentials = require('./config');
+const credentials = require('./config').DB;
 const url = 'mongodb://' + credentials.name + ':' + credentials.pwd + '@ds151554.mlab.com:51554/bart';
 
 const mongoose = require('mongoose');

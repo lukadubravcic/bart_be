@@ -1,17 +1,17 @@
-const emailNotificationCreators = require('../helpers/emailNotifications');
+const emailNotificationCreator = require('../helpers/emailNotificationsCreator');
 
 const User = require('../models/User');
 const Punishment = require('../models/Punishment');
 const Pref = require('../models/Pref');
 
-const sendmail = require('sendmail')({
+const sendmail = require('sendmail')/* ({
     logger: {
         debug: console.log,
         info: console.info,
         warn: console.warn,
         error: console.error
     }
-});
+}); */
 
 const constants = require('../config/constants');
 
@@ -21,29 +21,11 @@ const APP_LINK = constants.APP_ADRRESS //'localhost:8000';
 const userPrefNotifications = [constants.notifyFailed, constants.notifyDone, constants.notifyTrying];
 
 
-function sendEmail(receiverMail, notificationType, mailContent) {
-
-    let from = BART_MAIL;
-    let to = receiverMail;
-    let subject = getMailSubject(notificationType);
-    console.log(`Mail to: ${receiverMail}`);
-    
-    sendmail({
-        from: from,
-        to: receiverMail,
-        subject: subject,
-        html: mailContent,
-    }, function (err, reply) {
-        console.log(err && err.stack);
-        console.dir(reply);
-    }).then(() => {
-        return;
-    })
-}
-
 const notifyUser = (senderId, receivingEmail, punishmentId, notificationType) => {
 
     if (!receivingEmail) return;
+
+    let mailSent = null; 
 
     let notificationContent = 0;
     let sender = 0;
@@ -53,13 +35,14 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType) =>
 
     senderId ? queries.push(getUser(senderId)) : queries.push(null);
     punishmentId ? queries.push(getPunishment(punishmentId)) : queries.push(null);
-    // i receiver data
+    queries.push(getUserByMail(receivingEmail));
 
 
     Promise.all(queries).then(queryData => {
 
         sender = queryData[0];
         punishment = queryData[1];
+        receiver = queryData[2];
 
         if (inArray(notificationType, userPrefNotifications)) { // DONE, FAILED, TRYING
 
@@ -67,32 +50,34 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType) =>
                 if (pref[notificationType]) {
                     notificationContent = createNotificationContent({
                         sender: sender,
+                        receiver: receiver,
                         punishment: punishment,
                         notificationType: notificationType
                     });
                 }
                 if (notificationContent) {
-                    sendEmail(receivingEmail, notificationType, notificationContent);
+                    mailSent = sendEmail(receivingEmail, notificationType, notificationContent);                    
                 }
             });
         } else { // ostale notifikacije
 
             notificationContent = createNotificationContent({
                 sender: sender,
+                receiver: receiver,
                 punishment: punishment,
                 notificationType: notificationType
             });
 
-            // console.log(notificationContent);
-
             if (notificationContent) {
-                sendEmail(receivingEmail, notificationType, notificationContent);
-            };
-
+                mailSent = sendEmail(receivingEmail, notificationType, notificationContent);
+            };           
         }
+        console.log('Uspjesan mail: ' + mailSent);
+        return mailSent;
     }, reason => {
         // failani promise
         console.log('Promise query fail');
+        return mailSent;
     });
 }
 
@@ -101,37 +86,38 @@ function createNotificationContent(data) {
     switch (data.notificationType) {
 
         case constants.signup:
-            return emailNotificationCreators.signUpConfirmation();
+            return emailNotificationCreator.signUpConfirmation();
 
         case constants.passwordResetConfirmation:
-            return emailNotificationCreators.passwordResetConfirmation(resetPwdLink);
+            const resetPwdLink = getResetPwdLink(data);
+            return emailNotificationCreator.passwordResetConfirmation(resetPwdLink);
 
         case constants.newPassword:
-            return emailNotificationCreators.newPassword(temporaryPwd, changePwdLink);
+            return emailNotificationCreator.newPassword(temporaryPwd, changePwdLink);
 
         case constants.punishmentRequested:
-            return emailNotificationCreators.punishment(data.punishment.why, APP_LINK + "/punishment/accept?id=" + data.punishment._id);
+            return emailNotificationCreator.punishment(data.punishment.why, APP_LINK + "/punishment/accept?id=" + data.punishment._id);
 
         case constants.punishmentAccepted:
-            return emailNotificationCreators.accepted(data.punishment.why);
+            return emailNotificationCreator.accepted(data.punishment.why);
 
         case constants.punishmentRejected:
-            return emailNotificationCreators.rejected(data.punishment.why);
+            return emailNotificationCreator.rejected(data.punishment.why);
 
         case constants.punishmentIgnored:
-            return emailNotificationCreators.ignored(data.punishment.why);
+            return emailNotificationCreator.ignored(data.punishment.why);
 
         case constants.notifyTrying:
-            return emailNotificationCreators.trying(data.sender.username, data.punishment.why);
+            return emailNotificationCreator.trying(data.sender.username, data.punishment.why);
 
         case constants.notifyDone:
-            return emailNotificationCreators.done(data.sender.username, data.punishment.why);
+            return emailNotificationCreator.done(data.sender.username, data.punishment.why);
 
         case constants.notifyFailed:
-            return emailNotificationCreators.failed(data.sender.username, data.punishment.why);
+            return emailNotificationCreator.failed(data.sender.username, data.punishment.why);
 
         case constants.punishmentGivenUp:
-            return emailNotificationCreators.givenUp(data.sender.username, data.punishment.why);
+            return emailNotificationCreator.givenUp(data.sender.username, data.punishment.why);
 
         default:
             return null;
@@ -179,6 +165,33 @@ function getMailSubject(notificationType) {
     }
 }
 
+function sendEmail(receiverMail, notificationType, mailContent) {
+
+    let from = BART_MAIL;
+    let to = receiverMail;
+    let subject = getMailSubject(notificationType);
+
+    console.log('----------------------------------------------------------------------------');
+    console.log(`Mail from: ${from}`);
+    console.log(`Mail to: ${receiverMail}`);
+    console.log(`Mail subject: ${subject}`);
+    console.log('Content: \n\n' + mailContent + '\n')
+    console.log('----------------------------------------------------------------------------');
+    
+    sendmail({
+        from: from,
+        to: receiverMail,
+        subject: subject,
+        html: mailContent,
+    }, function (err, reply) {
+        if (err) return false;
+        if (reply) return true;
+    });
+}
+
+function getResetPwdLink(data) {
+    return constants.APP_ADRRESS + '/reset/' + data.receiver._id;
+}
 
 function getUserPreferences(userId) {
     return new Promise((resolve, reject) => {

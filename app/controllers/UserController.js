@@ -4,12 +4,15 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const bodyParser = require('body-parser');
 const sendNotification = require('../helpers/sendNotification');
+
 const constants = require('../config/constants');
 
 router.use(bodyParser.urlencoded({ extended: true }));
 
 const User = require('../models/User');
 const Pref = require('../models/Pref');
+const Log = require('../models/Log');
+const LogEvent = require('../models/LogEvent');
 
 const EMAIL_MAX_LEN = 50;
 const EMAIL_MIN_LEN = 5;
@@ -154,6 +157,33 @@ router.post('/setNewPassword', (req, res) => {
         });
     } else return res.json({ message: 'Unauthorized access.' });
 
+});
+
+router.post('/forgot', (req, res) => {
+    console.log(req.body)
+    setTimeout(() => {
+
+        // posalji mail sa reset pass linkom
+        if (req.body.email !== undefined) {
+            User.findOne({ email: req.body.email }, (err, user) => {
+
+                if (err) return res.json({ message: 'Server error. Try again.' });
+                if (!user) return res.json({ message: 'User not found.' });
+
+
+
+                sendNotification(0, user.email, 0, constants.passwordResetConfirmation);
+
+                let log = new Log({fk_user_uid: user._id});
+                log.save((err, result)=>{
+
+                })
+
+            });
+
+        }
+
+    }, 2000)
 });
 
 
