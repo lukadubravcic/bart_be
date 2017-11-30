@@ -4,14 +4,16 @@ const User = require('../models/User');
 const Punishment = require('../models/Punishment');
 const Pref = require('../models/Pref');
 
-const sendmail = require('sendmail')/* ({
+const sendmail = require('sendmail')({
+    /* silent: true, */
+
     logger: {
         debug: console.log,
         info: console.info,
         warn: console.warn,
         error: console.error
     }
-}); */
+});
 
 const constants = require('../config/constants');
 
@@ -21,11 +23,9 @@ const APP_LINK = constants.APP_ADRRESS //'localhost:8000';
 const userPrefNotifications = [constants.notifyFailed, constants.notifyDone, constants.notifyTrying];
 
 
-const notifyUser = (senderId, receivingEmail, punishmentId, notificationType) => {
+const notifyUser = (senderId, receivingEmail, punishmentId, notificationType, logId = null) => {
 
-    if (!receivingEmail) return;
-
-    let mailSent = null; 
+    if (!receivingEmail) return false;
 
     let notificationContent = 0;
     let sender = 0;
@@ -37,47 +37,67 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType) =>
     punishmentId ? queries.push(getPunishment(punishmentId)) : queries.push(null);
     queries.push(getUserByMail(receivingEmail));
 
+    return new Promise((resolve, reject) => {
 
-    Promise.all(queries).then(queryData => {
+        Promise.all(queries).then(queryData => {
 
-        sender = queryData[0];
-        punishment = queryData[1];
-        receiver = queryData[2];
+            sender = queryData[0];
+            punishment = queryData[1];
+            receiver = queryData[2];
 
-        if (inArray(notificationType, userPrefNotifications)) { // DONE, FAILED, TRYING
+            if (inArray(notificationType, userPrefNotifications)) { // DONE, FAILED, TRYING
 
-            getUserPreferences(receiverMail).then((pref) => {
-                if (pref[notificationType]) {
-                    notificationContent = createNotificationContent({
-                        sender: sender,
-                        receiver: receiver,
-                        punishment: punishment,
-                        notificationType: notificationType
-                    });
-                }
+                getUserPreferences(receiver._id).then((pref) => {
+                    if (pref[notificationType]) {
+                        notificationContent = createNotificationContent({
+                            sender: sender,
+                            receiver: receiver,
+                            punishment: punishment,
+                            notificationType: notificationType,
+                            logId: logId,
+                        });
+                    }
+
+                    if (notificationContent) {
+                        sendEmail(receivingEmail, notificationType, notificationContent).then(
+                            (sent) => {
+                                resolve(sent);
+                            },
+                            (rejected) => {
+                                resolve(false);
+                                console.log(rejected);
+                            }
+                        );
+                    }
+                });
+            } else { // ostale notifikacije
+
+                notificationContent = createNotificationContent({
+                    sender: sender,
+                    receiver: receiver,
+                    punishment: punishment,
+                    notificationType: notificationType,
+                    logId: logId,
+                });
+                console.log("notificationContent: " + notificationContent)
                 if (notificationContent) {
-                    mailSent = sendEmail(receivingEmail, notificationType, notificationContent);                    
-                }
-            });
-        } else { // ostale notifikacije
+                    sendEmail(receivingEmail, notificationType, notificationContent).then(
+                        (sent) => {
+                            resolve(sent);
+                        },
+                        (rejected) => {
+                            resolve(false);
+                            console.log(rejected);
+                        }
+                    );
+                };
+            }
 
-            notificationContent = createNotificationContent({
-                sender: sender,
-                receiver: receiver,
-                punishment: punishment,
-                notificationType: notificationType
-            });
-
-            if (notificationContent) {
-                mailSent = sendEmail(receivingEmail, notificationType, notificationContent);
-            };           
-        }
-        console.log('Uspjesan mail: ' + mailSent);
-        return mailSent;
-    }, reason => {
-        // failani promise
-        console.log('Promise query fail');
-        return mailSent;
+        }, reason => {
+            // failano dohvacanje podataka
+            console.log('Promise query fail');
+            resolve(false);
+        });
     });
 }
 
@@ -89,7 +109,8 @@ function createNotificationContent(data) {
             return emailNotificationCreator.signUpConfirmation();
 
         case constants.passwordResetConfirmation:
-            const resetPwdLink = getResetPwdLink(data);
+            const resetPwdLink = getResetPwdLink(data.logId);
+            console.log(data.logId)
             return emailNotificationCreator.passwordResetConfirmation(resetPwdLink);
 
         case constants.newPassword:
@@ -167,30 +188,33 @@ function getMailSubject(notificationType) {
 
 function sendEmail(receiverMail, notificationType, mailContent) {
 
-    let from = BART_MAIL;
-    let to = receiverMail;
-    let subject = getMailSubject(notificationType);
+    return new Promise((resolve, reject) => {
+        let from = BART_MAIL;
+        let to = receiverMail;
+        let subject = getMailSubject(notificationType);
 
-    console.log('----------------------------------------------------------------------------');
-    console.log(`Mail from: ${from}`);
-    console.log(`Mail to: ${receiverMail}`);
-    console.log(`Mail subject: ${subject}`);
-    console.log('Content: \n\n' + mailContent + '\n')
-    console.log('----------------------------------------------------------------------------');
-    
-    sendmail({
-        from: from,
-        to: receiverMail,
-        subject: subject,
-        html: mailContent,
-    }, function (err, reply) {
-        if (err) return false;
-        if (reply) return true;
+        console.log('----------------------------------------------------------------------------');
+        console.log(`Mail from: ${from}`);
+        console.log(`Mail to: ${receiverMail}`);
+        console.log(`Mail subject: ${subject}`);
+        console.log('Content: \n\n' + mailContent + '\n')
+        console.log('----------------------------------------------------------------------------');
+
+        sendmail({
+            from: from,
+            to: receiverMail,
+            subject: subject,
+            html: mailContent,
+        }, function (err, reply) {
+            console.log(reply);
+            if (err) resolve(false);
+            if (reply) resolve(true);
+        });
     });
 }
 
-function getResetPwdLink(data) {
-    return constants.APP_ADRRESS + '/reset/' + data.receiver._id;
+function getResetPwdLink(logId) {
+    return constants.APP_ADRRESS + '/reset/' + logId;
 }
 
 function getUserPreferences(userId) {

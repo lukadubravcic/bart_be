@@ -10,9 +10,9 @@ const LogSchema = new Schema({
         default: Date.now
     },
     fk_log_events_uid: {
-        type: String
+        type: Number
     }
-});
+}, {strict: false});
 
 mongoose.model('Log', LogSchema);
 

@@ -6,6 +6,7 @@ const bodyParser = require('body-parser');
 const sendNotification = require('../helpers/sendNotification');
 
 const constants = require('../config/constants');
+const appEvents = require('../config/config').events;
 
 router.use(bodyParser.urlencoded({ extended: true }));
 
@@ -20,6 +21,19 @@ const PASSWORD_MAX_LEN = 20;
 const PASSWORD_MIN_LEN = 3;
 const USERNAME_MAX_LEN = 20;
 const USERNAME_MIN_LEN = 4;
+
+const PASSWORD_RESET_WAITTIME = 10 * 60 * 1000; // 10 Minutes
+
+// DEV ONLY
+router.get('/insertingEvents', (req, res) => {
+    /* for (event in appEvents) {
+        let ev = new LogEvent({
+            _id: parseInt(appEvents[event].index),
+            description: appEvents[event].description
+        });
+        ev.save();
+    } */
+});
 
 
 router.post('/login', (req, res) => {
@@ -160,31 +174,82 @@ router.post('/setNewPassword', (req, res) => {
 });
 
 router.post('/forgot', (req, res) => {
-    console.log(req.body)
-    setTimeout(() => {
 
-        // posalji mail sa reset pass linkom
-        if (req.body.email !== undefined) {
-            User.findOne({ email: req.body.email }, (err, user) => {
+    if (req.body.email === undefined) return res.json({ message: 'No email provided.' });
 
-                if (err) return res.json({ message: 'Server error. Try again.' });
-                if (!user) return res.json({ message: 'User not found.' });
+    const passwordResetEventId = appEvents.resetPasswordEvent.index;
 
+    User.findOne({ email: req.body.email }, (err, user) => {
 
+        if (err) return res.json({ message: 'Server error. Try again.' });
+        if (!user) return res.json({ message: 'User not found.' });
 
-                sendNotification(0, user.email, 0, constants.passwordResetConfirmation);
+        // provjeri ako već postoji log o pwd resetu
 
-                let log = new Log({fk_user_uid: user._id});
-                log.save((err, result)=>{
+        Log.findOne({ fk_user_id: user._id, fk_log_events_uid: passwordResetEventId }, (err, log) => {
+            if (err) return res.json({ message: 'Server error. Try again.' });
+            if (log) {
+                return res.json({ message: 'Mail is already sent.' })
+            }
 
-                })
-
+            let newLog = new Log({
+                fk_user_id: user._id,
+                fk_log_events_uid: passwordResetEventId
             });
 
+            newLog.save((err, result) => {
+                if (err) return res.json({ message: 'Server error. Try again.' });
+                if (!result) return res.json({ message: 'Server error. Try again.' });
+
+                sendNotification(0, user.email, 0, constants.passwordResetConfirmation, result._id).then((isMailSent) => {
+
+                    console.log(`\nMail sent: ${isMailSent}\n`);
+
+                    if (isMailSent) {
+                        return res.json({ message: 'Temporary password is sent to your email.' });
+
+                    } else {
+                        // mail nije poslan, pa pobrisi kreiran log
+                        result.remove();
+                        return res.json({ message: 'Error on sending mail. Try again.' });
+                    }
+
+                }, (rejected) => {
+                    return res.json({ message: 'Server error. Try again.' });
+                });
+            });
+        });
+    });
+});
+
+router.get('/reset/:logId', (req, res) => {
+    
+    const logId = req.params.logId;
+
+    Log.findById(logId, (err, log) => {
+        if (err) return res.status(505).send('You are doing something wrong.');
+        if (!log) return res.status(400).send('Invalid access.');
+       
+        if (isPwdResetReqInvalid(log)) {
+
+            if (typeof log.get('done') === 'undefined') {
+
+                // markaj done
+                log.set('done', Date.now());                
+
+                log.save((err, result) => {
+                    console.log(result);
+                });
+
+
+            }
         }
 
-    }, 2000)
+
+    });
+
 });
+
 
 
 /* router.get('/:id', (req, res) => {
@@ -257,4 +322,16 @@ function validPassword(password) {
     return true;
 }
 
+function isPwdResetReqInvalid(log) {
+
+    if (typeof log.done !== 'undefined') return true;
+
+    if (log.fk_log_events_uid !== appEvents.resetPasswordEvent.index) return true;
+
+    const msTimeSinceCreated = Date.now() - (new Date(log.when).getTime());
+
+    if (msTimeSinceCreated > PASSWORD_RESET_WAITTIME) return true;
+
+    return false;
+}
 
