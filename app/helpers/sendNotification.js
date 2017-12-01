@@ -23,7 +23,7 @@ const APP_LINK = constants.APP_ADRRESS //'localhost:8000';
 const userPrefNotifications = [constants.notifyFailed, constants.notifyDone, constants.notifyTrying];
 
 
-const notifyUser = (senderId, receivingEmail, punishmentId, notificationType, logId = null) => {
+const notifyUser = (senderId, receivingEmail, punishmentId, notificationType, logId = null, newPwd = null) => {
 
     if (!receivingEmail) return false;
 
@@ -78,6 +78,7 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType, lo
                     punishment: punishment,
                     notificationType: notificationType,
                     logId: logId,
+                    newPwd: newPwd,
                 });
                 console.log("notificationContent: " + notificationContent)
                 if (notificationContent) {
@@ -114,7 +115,7 @@ function createNotificationContent(data) {
             return emailNotificationCreator.passwordResetConfirmation(resetPwdLink);
 
         case constants.newPassword:
-            return emailNotificationCreator.newPassword(temporaryPwd, changePwdLink);
+            return emailNotificationCreator.newPassword(data.newPwd, constants.APP_ADRRESS);
 
         case constants.punishmentRequested:
             return emailNotificationCreator.punishment(data.punishment.why, APP_LINK + "/punishment/accept?id=" + data.punishment._id);
@@ -206,7 +207,6 @@ function sendEmail(receiverMail, notificationType, mailContent) {
             subject: subject,
             html: mailContent,
         }, function (err, reply) {
-            console.log(reply);
             if (err) resolve(false);
             if (reply) resolve(true);
         });

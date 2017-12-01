@@ -40,6 +40,8 @@ router.post('/login', (req, res) => {
 
     if (!validateLogin(req.body)) return res.status(400).send('Validation error.')
 
+    const loginEventId = appEvents.loginEvent.index;
+
     User.findOne({ email: req.body.email }, (err, user) => {
         if (err) return res.json({ message: "Server error" });
         if (!user) {
@@ -49,16 +51,43 @@ router.post('/login', (req, res) => {
                 return res.json({ message: "Authentication failed. Wrong password." });
             } else {
                 Pref.findOne({ fk_user_uid: user._id }, (err, pref) => {
-                    return res.json({
+                    res.json({
                         token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'),
                         username: user.username,
                         email: user.email,
                         _id: user._id,
                         prefs: pref
+                    })
+
+                    let loginLog = new Log({
+                        fk_user_id: user._id,
+                        fk_log_events_uid: loginEventId
                     });
+
+                    loginLog.save();
                 });
             }
         }
+    });
+});
+
+router.post('/logout', (req, res) => {
+
+    if (typeof req.user === 'undefined') return res.status(400).send('Invalid action');
+
+    const logoutEventId = appEvents.logoutEvent.index;
+
+    let logoutLog = new Log({
+        fk_user_id: req.user._id,
+        fk_log_events_uid: logoutEventId
+    });
+
+    logoutLog.save().then(logged => {
+        console.log('HERE')
+        return res.status(200).send('Logout action received');
+        
+    }, err => {
+        return res.status(500).send('Error');
     });
 });
 
@@ -153,7 +182,6 @@ router.post('/username', (req, res) => {
 });
 
 router.post('/setNewPassword', (req, res) => {
-    console.log(req.body);
 
     if (req.user) {
         User.findById(req.user._id, (err, user) => {
@@ -184,12 +212,20 @@ router.post('/forgot', (req, res) => {
         if (err) return res.json({ message: 'Server error. Try again.' });
         if (!user) return res.json({ message: 'User not found.' });
 
-        // provjeri ako već postoji log o pwd resetu
+        // provjeri ako već postoji aktivni log o pwd resetu
 
-        Log.findOne({ fk_user_id: user._id, fk_log_events_uid: passwordResetEventId }, (err, log) => {
+        Log.find({ fk_user_id: user._id, fk_log_events_uid: passwordResetEventId }, (err, logs) => {
             if (err) return res.json({ message: 'Server error. Try again.' });
-            if (log) {
-                return res.json({ message: 'Mail is already sent.' })
+
+            if (logs.length) {
+
+                logs.map((log, index) => {
+                    // ako postoji AKTIVAN zahtjev za resetom pwda 
+
+                    if (!isPwdResetReqInvalid(log)) { // valid request
+                        return res.json({ message: 'Password reset request already sent. Check your email.' });
+                    }
+                });
             }
 
             let newLog = new Log({
@@ -223,33 +259,54 @@ router.post('/forgot', (req, res) => {
 });
 
 router.get('/reset/:logId', (req, res) => {
-    
+
     const logId = req.params.logId;
 
     Log.findById(logId, (err, log) => {
         if (err) return res.status(505).send('You are doing something wrong.');
         if (!log) return res.status(400).send('Invalid access.');
-       
+
+        // provjera jel zahtjev validan (moguce da se ponavlja ili je istekao vremenski interval)
         if (isPwdResetReqInvalid(log)) {
 
             if (typeof log.get('done') === 'undefined') {
+                // u slucaju (istekao vremenski interval) da nije markan kao obavljen -> markaj
+                log.set('done', Date.now());
+                log.save();
+            }
+            return res.status(400).send('Invalid request.');
 
-                // markaj done
-                log.set('done', Date.now());                
+        } else {
 
-                log.save((err, result) => {
-                    console.log(result);
+            User.findById(log.fk_user_id).then(user => {
+
+                if (!user) return res.status(400).send('User not found.');
+
+                const newPwd = Math.random().toString(36).substr(2, 8);
+
+                sendNotification(0, user.email, 0, constants.newPassword, 0, newPwd).then(isMailSent => {
+
+                    if (!isMailSent) return res.status(500).send('Error on sending mail. Try again.');
+
+                    user.hash_password = bcrypt.hashSync(newPwd, 10);
+
+                    user.save((err, result) => {
+                        log.set('done', Date.now());
+                        log.save((err, result) => {
+                            return res.redirect(constants.APP_ADRRESS);
+                        });
+                    });
+
+                }, err => {
+                    console.log('ERR: sendNotification');
                 });
 
-
-            }
+            }, err => {
+                return res.status(500).send('Server error. Try again.');
+            });
         }
-
-
     });
-
 });
-
 
 
 /* router.get('/:id', (req, res) => {
@@ -324,7 +381,7 @@ function validPassword(password) {
 
 function isPwdResetReqInvalid(log) {
 
-    if (typeof log.done !== 'undefined') return true;
+    if (typeof log.get('done') !== 'undefined') return true;
 
     if (log.fk_log_events_uid !== appEvents.resetPasswordEvent.index) return true;
 
