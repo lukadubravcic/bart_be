@@ -18,16 +18,30 @@ const Punishment = require('../models/Punishment');
 const Try = require('../models/Try');
 const SpecialPunishment = require('../models/SpecialPunishment');
 const RandomPunishment = require('../models/RandomPunishment');
+const Score = require('../models/Score');
 
 const constants = require('../config/constants');
 const BART_MAIL = constants.BART_MAIL;
 
-router.use(bodyParser.urlencoded({ extended: true }));
 
+
+let scoreboard = [];
+
+
+
+router.use(bodyParser.urlencoded({ extended: true }));
 /* router.use((req, res, next) => {
     console.log(req.user)
     next();
 }); */
+
+router.get('/sort', (req, res) => {
+    Score.find().sort({ points: -1 }).then(scores => {
+        scores.forEach((score,index)=>{
+            console.log(score.points)
+        });
+    });
+});
 
 router.get('/accept', (req, res) => {
 
@@ -51,12 +65,6 @@ router.get('/accept', (req, res) => {
     } else return res.status(400).send('Punishment ID isn\'t privided.')
 });
 
-router.get('/test', (req, res) => {
-
-    sendNotification(req.user._id, '59ce445117dc67248c637138', '59d4c81d31fa990f180e5269', 'signup');
-
-});
-
 router.get('/random', (req, res) => {
 
     RandomPunishment.find({}, (err, punishments) => {
@@ -75,20 +83,6 @@ router.get('/special', (req, res) => {
         res.json(punishments);
     });
 
-});
-
-router.get('/mail', (req, res) => {
-
-    sendmail({
-        from: 'bart@barted.com',
-        to: 'lukadubravcic@yahoo.com',
-        subject: 'piknik',
-        text: 'Nekakav testni mail, lp',
-    }, function (err, reply) {
-        console.log(err && err.stack);
-        console.dir(reply);
-    });
-    res.json('mail sent');
 });
 
 router.get('/accepted', (req, res) => {
@@ -197,9 +191,7 @@ router.post('/giveup', (req, res) => {
 });
 
 router.post('/log', (req, res) => {
-    console.log('---------------------------');
-    console.log(req.user);
-    console.log(req.body);
+
     if (req.user) {
         Punishment.findById(req.body.id, (err, punishment) => {
 
@@ -236,20 +228,27 @@ router.post('/log', (req, res) => {
 });
 
 router.post('/done', (req, res) => {
-    console.log('DONE');
+
+    /* PROVJERITI JEL UNUTAR DEADLINE-a */
+    console.log(req.body)
+
     if (req.user) {
         Punishment.findById(req.body.id, (err, punishment) => {
             if (err) return res.status(500).json('There was a problem finding the punishment.');
             if (!punishment) return res.status(400).json('Punishment does not exist.')
             if (punishment.fk_user_email_taking_punishment !== req.user.email) return res.status(400).json('This is not your punishment.');
-            punishment.done = Date.now();
+
+            //punishment.done = Date.now();
             punishment.save((err, punishment) => {
                 if (err) return res.status(500).json('There was a problem saving the punishment.');
                 res.status(200).json('Punishment saved.');
 
-                User.findById(punishment.fk_user_uid_ordering_punishment, (err, user) => {
-                    if (user) sendNotification(req.body._id, user.email, punishment._id, constants.notifyDone);
-                });
+                /* User.findById(punishment.fk_user_uid_ordering_punishment, (err, user) => {
+                    console.log(user.email)
+                    if (user) sendNotification(req.user._id, user.email, punishment._id, constants.notifyDone);
+                }); */
+
+                addToScoreboard(req.user, punishment, req.body.timeSpent);
 
                 return;
             });
@@ -261,6 +260,7 @@ router.post('/create', (req, res) => {
     let punishmentData = req.body;
     let userOrderingPunishment = req.user;
     console.log(punishmentData)
+
     if (req.user) { // if user logged in
 
         if (!isPunishmentValid(punishmentData)) return res.json({ errorMsg: 'Punishment not valid. Try again.' });
@@ -307,10 +307,35 @@ router.post('/create', (req, res) => {
                 if (err) return res.send({ errorMsg: 'Error on finding desired user' });
                 if (!user) {
 
+                    // USER NE POSTOJI, POSALJI REQUEST NA DANI MAIL TE NAPRAVI USERA (TODO)
 
-                    // TODO: napraviti punishment, poslati mail
+                    let newPunishment = new Punishment({
+                        fk_user_uid_ordering_punishment: userOrderingPunishment._id,
+                        fk_user_email_taking_punishment: punishmentData.whomEmail,
+                        how_many_times: punishmentData.howManyTimes,
+                        deadline: punishmentData.deadlineDate === '' ? null : punishmentData.deadlineDate,
+                        what_to_write: punishmentData.whatToWrite,
+                        why: punishmentData.why
+                    });
 
-                    return res.json({ errorMsg: 'User does not exist.' })
+                    newPunishment.save((err, punishment) => {
+                        if (err) {
+                            return res.send({ errorMsg: 'Error on database entry' });
+                        } else {
+                            //console.log(punishment);
+                            let response = JSON.parse(JSON.stringify(punishment))
+                            response.user_taking_punishment = punishmentData.whomEmail;
+
+                            res.json(response);
+
+                            sendNotification(userOrderingPunishment._id, punishmentData.whomEmail, punishment._id, constants.punishmentRequested);
+                            return;
+                        }
+                    });
+
+                    // return res.json({ errorMsg: 'User does not postojati.' });
+
+
                 } else if (user) {
                     // stvori kaznu
                     let newPunishment = new Punishment({
@@ -421,5 +446,43 @@ function isPunishmentValid(punishment) {
 
     return true;
 }
+
+
+function calcPunishmentScore(punishment, timeSpent) {
+
+    const punishmentLen = punishment.what_to_write.length;
+    const howManyTimes = punishment.how_many_times;
+
+    return ((punishmentLen * howManyTimes) / timeSpent).toFixed(3);
+}
+
+function addToScoreboard(user, punishment, timeSpent) {
+
+    const punishmentScore = calcPunishmentScore(punishment, timeSpent);
+
+    // Provjera ako entry vec postoji 
+
+    Score.findOne({ fk_user_id: user._id }, (err, score) => {
+
+        if (err) return null;
+        else if (!score) {
+
+            let newScore = new Score({
+                fk_user_id: user._id,
+                points: punishmentScore,
+                last_pun_taken_id: punishment._id
+            });
+
+            newScore.save();
+
+        } else {
+
+            score.points = (parseInt(score.points) + parseInt(punishmentScore)).toFixed(3);
+            score.last_pun_taken_id = punishment._id;
+            score.save();
+        }
+    });
+};
+
 
 

@@ -47,11 +47,13 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType, lo
 
             if (inArray(notificationType, userPrefNotifications)) { // DONE, FAILED, TRYING
 
-                getUserPreferences(receiver._id).then((pref) => {
+                getUserPreferences(receiver._id).then(pref => {
                     if (pref[notificationType]) {
+
+                        console.log(queryData)
                         notificationContent = createNotificationContent({
                             sender: sender,
-                            receiver: receiver,
+                            receiver: receivingEmail,
                             punishment: punishment,
                             notificationType: notificationType,
                             logId: logId,
@@ -60,33 +62,36 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType, lo
 
                     if (notificationContent) {
                         sendEmail(receivingEmail, notificationType, notificationContent).then(
-                            (sent) => {
+                            sent => {
                                 resolve(sent);
                             },
-                            (rejected) => {
+                            rejected => {
                                 resolve(false);
                                 console.log(rejected);
                             }
                         );
                     }
+                }, err => {
+                    console.log('err: get user prefs')
+                    console.log(err)
                 });
             } else { // ostale notifikacije
 
                 notificationContent = createNotificationContent({
                     sender: sender,
-                    receiver: receiver,
+                    receiver: receivingEmail,
                     punishment: punishment,
                     notificationType: notificationType,
                     logId: logId,
                     newPwd: newPwd,
                 });
-                console.log("notificationContent: " + notificationContent)
+                
                 if (notificationContent) {
                     sendEmail(receivingEmail, notificationType, notificationContent).then(
-                        (sent) => {
+                        sent => {
                             resolve(sent);
                         },
-                        (rejected) => {
+                        rejected => {
                             resolve(false);
                             console.log(rejected);
                         }
@@ -94,12 +99,12 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType, lo
                 };
             }
 
-        }, reason => {
+        }, err => {
             // failano dohvacanje podataka
             console.log('Promise query fail');
             resolve(false);
         });
-    });
+    }, err => { console.log(err) });
 }
 
 function createNotificationContent(data) {
@@ -111,7 +116,6 @@ function createNotificationContent(data) {
 
         case constants.passwordResetConfirmation:
             const resetPwdLink = getResetPwdLink(data.logId);
-            console.log(data.logId)
             return emailNotificationCreator.passwordResetConfirmation(resetPwdLink);
 
         case constants.newPassword:
@@ -130,6 +134,7 @@ function createNotificationContent(data) {
             return emailNotificationCreator.ignored(data.punishment.why);
 
         case constants.notifyTrying:
+            console.log(data.sender)
             return emailNotificationCreator.trying(data.sender.username, data.punishment.why);
 
         case constants.notifyDone:
@@ -219,12 +224,12 @@ function getResetPwdLink(logId) {
 
 function getUserPreferences(userId) {
     return new Promise((resolve, reject) => {
-        Pref.findOne({ fk_user_id: userId }, (err, pref) => {
+        Pref.findOne({ fk_user_uid: userId }, (err, pref) => {
             if (err) {
                 reject(err);
                 return;
             } else if (!pref) {
-                reject(new Pref());
+                resolve(new Pref());
                 return;
             };
             resolve(pref);
@@ -252,6 +257,7 @@ function getUserByMail(mail) {
     return new Promise((resolve, reject) => {
         User.findOne({ email: mail }, (err, user) => {
             if (err) {
+                console.log('TESTESTEDT')
                 reject(err);
                 return;
             } else if (!user) {

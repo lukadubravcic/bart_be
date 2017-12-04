@@ -1,7 +1,7 @@
 module.exports = {
 
     BART_MAIL:'Bart@barted.com',
-    APP_ADRRESS: 'http://localhost:3000',
+    APP_ADRRESS: 'http://localhost:8000',
 
     passwordResetConfirmation: 'password_reset_confirmation',
     signup: 'signup',

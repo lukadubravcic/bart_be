@@ -14,6 +14,7 @@ const User = require('../models/User');
 const Pref = require('../models/Pref');
 const Log = require('../models/Log');
 const LogEvent = require('../models/LogEvent');
+const Score = require('../models/Score');
 
 const EMAIL_MAX_LEN = 50;
 const EMAIL_MIN_LEN = 5;
@@ -51,20 +52,37 @@ router.post('/login', (req, res) => {
                 return res.json({ message: "Authentication failed. Wrong password." });
             } else {
                 Pref.findOne({ fk_user_uid: user._id }, (err, pref) => {
-                    res.json({
-                        token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'),
-                        username: user.username,
-                        email: user.email,
-                        _id: user._id,
-                        prefs: pref
-                    })
 
-                    let loginLog = new Log({
-                        fk_user_id: user._id,
-                        fk_log_events_uid: loginEventId
+                    if (err) return res.json({ message: 'Server error' });
+
+                    let rank = 'unknown';
+
+                    Score.find().sort({ points: -1 }).then(scores => {
+
+                        scores.forEach((score, index) => {
+                            if (score.fk_user_id == user._id) rank = index + 1;
+                        });
+
+                        console.log(rank);
+
+                        res.json({
+                            token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'),
+                            username: user.username,
+                            email: user.email,
+                            _id: user._id,
+                            prefs: pref,
+                            rank: rank
+                        });
+
+                        let loginLog = new Log({
+                            fk_user_id: user._id,
+                            fk_log_events_uid: loginEventId
+                        });
+
+                        loginLog.save();
                     });
 
-                    loginLog.save();
+
                 });
             }
         }
@@ -83,9 +101,8 @@ router.post('/logout', (req, res) => {
     });
 
     logoutLog.save().then(logged => {
-        console.log('HERE')
         return res.status(200).send('Logout action received');
-        
+
     }, err => {
         return res.status(500).send('Error');
     });
