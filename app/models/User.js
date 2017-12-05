@@ -29,7 +29,7 @@ const UserSchema = new Schema({
         type: Date,
         default: null
     },
-    invited_by: {
+    invited_by: { //fk_user_id“
         type: String, 
         default: null
     }

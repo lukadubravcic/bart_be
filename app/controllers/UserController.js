@@ -63,8 +63,6 @@ router.post('/login', (req, res) => {
                             if (score.fk_user_id == user._id) rank = index + 1;
                         });
 
-                        console.log(rank);
-
                         res.json({
                             token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'),
                             username: user.username,
