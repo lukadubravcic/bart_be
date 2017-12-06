@@ -35,11 +35,12 @@ router.use(bodyParser.urlencoded({ extended: true }));
     next();
 }); */
 
-router.get('/sort', (req, res) => {
-    Score.find().sort({ points: -1 }).then(scores => {
-        scores.forEach((score,index)=>{
-            console.log(score.points)
-        });
+router.get('/test', (req, res) => {
+    sendmail({
+        from: constants.BART_MAIL,
+        to: 'ldubravcic@kreativni.hr',
+        subject: 'test slanja na kreativni mail server',
+        html: 'Hello Luka',
     });
 });
 
@@ -241,16 +242,26 @@ router.post('/done', (req, res) => {
             //punishment.done = Date.now();
             punishment.save((err, punishment) => {
                 if (err) return res.status(500).json('There was a problem saving the punishment.');
-                res.status(200).json('Punishment saved.');
+                //res.status(200).json('Punishment saved.');
+
+                addToScoreboard(req.user, punishment, req.body.timeSpent).then(() => {
+                    Score.find().sort({ points: -1 }).then(scores => {
+
+                        let rank = null;
+
+                        scores.forEach((score, index) => {
+                            if (score.fk_user_id == req.user._id) rank = index + 1;
+                        });
+
+                        if (!rank) res.status(200).send('Punishment completed');
+                        else res.status(200).json({ rank: rank });
+                    });
+                });
 
                 /* User.findById(punishment.fk_user_uid_ordering_punishment, (err, user) => {
                     console.log(user.email)
                     if (user) sendNotification(req.user._id, user.email, punishment._id, constants.notifyDone);
                 }); */
-
-                addToScoreboard(req.user, punishment, req.body.timeSpent);
-
-                return;
             });
         });
     } else return res.status(400).send('Not authorized.');
@@ -458,29 +469,31 @@ function calcPunishmentScore(punishment, timeSpent) {
 
 function addToScoreboard(user, punishment, timeSpent) {
 
-    const punishmentScore = calcPunishmentScore(punishment, timeSpent);
+    return new Promise((resolve, reject) => {
+        const punishmentScore = calcPunishmentScore(punishment, timeSpent);
 
-    // Provjera ako entry vec postoji 
+        // Provjera ako entry vec postoji 
 
-    Score.findOne({ fk_user_id: user._id }, (err, score) => {
+        Score.findOne({ fk_user_id: user._id }, (err, score) => {
 
-        if (err) return null;
-        else if (!score) {
+            if (err) reject();
+            else if (!score) {
 
-            let newScore = new Score({
-                fk_user_id: user._id,
-                points: punishmentScore,
-                last_pun_taken_id: punishment._id
-            });
+                let newScore = new Score({
+                    fk_user_id: user._id,
+                    points: punishmentScore,
+                    last_pun_taken_id: punishment._id
+                });
 
-            newScore.save();
+                newScore.save().then(saved => resolve());
 
-        } else {
+            } else {
 
-            score.points = (parseInt(score.points) + parseInt(punishmentScore)).toFixed(3);
-            score.last_pun_taken_id = punishment._id;
-            score.save();
-        }
+                score.points = (parseInt(score.points) + parseInt(punishmentScore)).toFixed(3);
+                score.last_pun_taken_id = punishment._id;
+                score.save().then(saved => resolve());
+            }
+        });
     });
 };
 

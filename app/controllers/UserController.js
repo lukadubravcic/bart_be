@@ -79,8 +79,6 @@ router.post('/login', (req, res) => {
 
                         loginLog.save();
                     });
-
-
                 });
             }
         }
@@ -118,9 +116,8 @@ router.post('/register', (req, res) => {
             if (err.code === 11000) {
                 return res.json({ errMsg: 'User with that email exists.' });
             }
-            return res.status(400).send({
-                message: err
-            });
+            return res.status(500).json({ message: 'Server error. Try again.' });
+
         } else {
             user.hash_password = undefined;
             let newPref = new Pref();
@@ -134,6 +131,38 @@ router.post('/register', (req, res) => {
     });
 });
 
+router.post('/sregister', (req, res) => {
+
+    console.log(req.body)
+
+    if (typeof req.body.userID === 'undefined') return res.status(400).json('Missing data.');
+
+    User.findById(req.body.userID, (err, user) => {
+        if (err) return res.json({ message: 'Error fetching user data.' });
+        if (!user) return res.json({ message: 'User does not exist.' });
+        if (typeof user.hash_password !== 'undefined') return res.json({ message: 'Accessing wrong user.' });
+
+        user.hash_password = bcrypt.hashSync(req.body.password, 10);
+
+        user.save().then(user => {
+
+            res.json({
+                token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'),
+                username: user.username,
+                email: user.email,
+                _id: user._id,
+                prefs: pref,
+                rank: rank
+            });
+
+        }, err => {
+            return res.json({ message: 'Server error. Try again.' });
+        });
+    });
+
+    //return res.json({ message: 'TEST' });
+})
+
 router.get('/', (req, res) => {
 
     if (req.user) {
@@ -142,10 +171,20 @@ router.get('/', (req, res) => {
             if (!user) return res.status(400).send("No user found.");
             else {
                 // posalji user data (napravljen je page refresh)
-                res.send({
-                    _id: user._id,
-                    email: user.email,
-                    username: user.username
+                let rank = 'unknown';
+
+                Score.find().sort({ points: -1 }).then(scores => {
+
+                    scores.forEach((score, index) => {
+                        if (score.fk_user_id == user._id) rank = index + 1;
+                    });
+
+                    return res.json({
+                        _id: user._id,
+                        email: user.email,
+                        username: user.username,
+                        rank: rank
+                    });
                 });
             }
         });
