@@ -35,20 +35,20 @@ router.use(bodyParser.urlencoded({ extended: true }));
     next();
 }); */
 
-router.get('/test', (req, res) => {
+/* router.get('/test', (req, res) => {
     sendmail({
         from: constants.BART_MAIL,
         to: 'ldubravcic@kreativni.hr',
         subject: 'test slanja na kreativni mail server',
         html: 'Hello Luka',
     });
-});
+}); */
 
 router.get('/accept', (req, res) => {
 
-    if (req.query.id) {
+    if (typeof req.query.id !== 'undefined') {
         Punishment.findById(req.query.id, (err, punishment) => {
-
+            console.log(punishment)
             if (err) return res.status(500).send('There was a problem finding punishment.');
             if (!punishment) return res.status(400).send('Punishment with that ID does not exist.');
             if (punishment.accepted) return res.status(400).send('Punishment already accepted.');
@@ -57,13 +57,27 @@ router.get('/accept', (req, res) => {
             punishment.save((err, punishment) => {
                 if (err) return res.status(500).send('There was a problem with setting punishment accepted.');
 
-                //tmp:
-                res.redirect(constants.APP_ADRRESS + '?id=' + punishment._id);
+                // check if user is "real" or just invited
+                User.findOne({ email: punishment.fk_user_email_taking_punishment }, (err, user) => {
 
-                // TODO: REDIREKT NA RUTU GDJE SE POSLUZUJE APP
+                    if (err) return res.status(500).send('Server error. Try again.');
+                    if (!user) return res.status(500).send('Could not find user. Try again.');
+
+                    // REDIREKT NA RUTU GDJE SE POSLUZUJE APP
+                    // invited ako je email = username 
+                    console.log(user)
+                    if (!user.username) {
+                        return res.redirect(/* constants.APP_ADRRESS */'http://localhost:3000?uid=' + user._id + '&id=' + punishment._id)
+                    } else {
+                        return res.redirect(/* constants.APP_ADRRESS */'http://localhost:3000?id=' + punishment._id);
+                    }
+                });
+
+                
             });
         });
-    } else return res.status(400).send('Punishment ID isn\'t privided.')
+
+    } else return res.status(400).send('Punishment ID isn\'t provided.')
 });
 
 router.get('/random', (req, res) => {
@@ -319,33 +333,40 @@ router.post('/create', (req, res) => {
                 if (!user) {
 
                     // USER NE POSTOJI, POSALJI REQUEST NA DANI MAIL TE NAPRAVI USERA (TODO)
-
-                    let newPunishment = new Punishment({
-                        fk_user_uid_ordering_punishment: userOrderingPunishment._id,
-                        fk_user_email_taking_punishment: punishmentData.whomEmail,
-                        how_many_times: punishmentData.howManyTimes,
-                        deadline: punishmentData.deadlineDate === '' ? null : punishmentData.deadlineDate,
-                        what_to_write: punishmentData.whatToWrite,
-                        why: punishmentData.why
+                    let newUser = new User({
+                        email: punishmentData.whomEmail,
+                        invited_by: userOrderingPunishment._id
                     });
 
-                    newPunishment.save((err, punishment) => {
-                        if (err) {
-                            return res.send({ errorMsg: 'Error on database entry' });
-                        } else {
-                            //console.log(punishment);
-                            let response = JSON.parse(JSON.stringify(punishment))
-                            response.user_taking_punishment = punishmentData.whomEmail;
+                    newUser.save().then(user => {
 
-                            res.json(response);
+                        let newPunishment = new Punishment({
+                            fk_user_uid_ordering_punishment: userOrderingPunishment._id,
+                            fk_user_email_taking_punishment: punishmentData.whomEmail,
+                            how_many_times: punishmentData.howManyTimes,
+                            deadline: punishmentData.deadlineDate === '' ? null : punishmentData.deadlineDate,
+                            what_to_write: punishmentData.whatToWrite,
+                            why: punishmentData.why
+                        });
 
-                            sendNotification(userOrderingPunishment._id, punishmentData.whomEmail, punishment._id, constants.punishmentRequested);
-                            return;
-                        }
+                        newPunishment.save((err, punishment) => {
+                            if (err) {
+                                return res.json({ errorMsg: 'Error on database entry.' });
+                            } else {
+                                //console.log(punishment);
+                                let response = JSON.parse(JSON.stringify(punishment))
+                                response.user_taking_punishment = punishmentData.whomEmail;
+
+                                res.json(response);
+
+                                sendNotification(userOrderingPunishment._id, punishmentData.whomEmail, punishment._id, constants.punishmentRequested);
+                                return;
+                            }
+                        });
+                    }, err => {
+                        console.log(err);
+                        return res.json({ errorMsg: 'Server error. Try again.' });
                     });
-
-                    // return res.json({ errorMsg: 'User does not postojati.' });
-
 
                 } else if (user) {
                     // stvori kaznu
@@ -375,7 +396,7 @@ router.post('/create', (req, res) => {
             });
 
         } else {
-            res.status(400).json('Punishment misses data.');
+            res.status(400).send('Punishment misses data.');
         }
     } else return res.status(400).send('Not authorized.');
 });

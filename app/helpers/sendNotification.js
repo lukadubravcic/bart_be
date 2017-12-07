@@ -44,13 +44,14 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType, lo
             sender = queryData[0];
             punishment = queryData[1];
             receiver = queryData[2];
+            console.log
 
             if (inArray(notificationType, userPrefNotifications)) { // DONE, FAILED, TRYING
 
                 getUserPreferences(receiver._id).then(pref => {
                     if (pref[notificationType]) {
 
-                        console.log(queryData)
+                        
                         notificationContent = createNotificationContent({
                             sender: sender,
                             receiver: receivingEmail,
@@ -208,7 +209,7 @@ function sendEmail(receiverMail, notificationType, mailContent) {
 
         sendmail({
             from: from,
-            to: receiverMail,
+            to: 'lukadubravcic@yahoo.com', //receiverMail,
             subject: subject,
             html: mailContent,
         }, function (err, reply) {

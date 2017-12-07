@@ -36,6 +36,15 @@ router.get('/insertingEvents', (req, res) => {
     } */
 });
 
+router.get('/test', (req, res) => {
+    let testUser = new User({
+        _id: '59ca467a9ecea810b9434345',
+        email: 'test3naproba@ththth.com',
+        hash_password: bcrypt.hashSync('123', 10)
+    });
+    testUser.save();
+});
+
 
 router.post('/login', (req, res) => {
 
@@ -146,13 +155,34 @@ router.post('/sregister', (req, res) => {
 
         user.save().then(user => {
 
-            res.json({
-                token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'),
-                username: user.username,
-                email: user.email,
-                _id: user._id,
-                prefs: pref,
-                rank: rank
+            Pref.findOne({ fk_user_uid: user._id }, (err, pref) => {
+
+                if (err) return res.json({ message: 'Server error' });
+
+                let rank = 'unknown';
+
+                Score.find().sort({ points: -1 }).then(scores => {
+
+                    scores.forEach((score, index) => {
+                        if (score.fk_user_id == user._id) rank = index + 1;
+                    });
+
+                    res.json({
+                        token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'),
+                        username: user.username,
+                        email: user.email,
+                        _id: user._id,
+                        prefs: pref,
+                        rank: rank
+                    });
+
+                    let loginLog = new Log({
+                        fk_user_id: user._id,
+                        fk_log_events_uid: loginEventId
+                    });
+
+                    loginLog.save();
+                });
             });
 
         }, err => {
