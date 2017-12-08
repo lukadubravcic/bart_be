@@ -30,6 +30,7 @@ let scoreboard = [];
 
 
 router.use(bodyParser.urlencoded({ extended: true }));
+
 /* router.use((req, res, next) => {
     console.log(req.user)
     next();
@@ -63,27 +64,25 @@ router.get('/accept', (req, res) => {
                     if (err) return res.status(500).send('Server error. Try again.');
                     if (!user) return res.status(500).send('Could not find user. Try again.');
 
-                    // REDIREKT NA RUTU GDJE SE POSLUZUJE APP
-                    // invited ako je email = username 
-                    console.log(user)
-                    if (!user.username) {
-                        return res.redirect(/* constants.APP_ADRRESS */'http://localhost:3000?uid=' + user._id + '&id=' + punishment._id)
+                    // REDIREKT NA RUTU GDJE SE POSLUZUJE APP                   
+
+                    if (!user.username) { // specijalni slucaj, invited player
+                        console.log(user);
+                        return res.redirect(/* constants.APP_ADRRESS */'http://localhost:3000?uid=' + user._id + '&id=' + punishment._id);
                     } else {
                         return res.redirect(/* constants.APP_ADRRESS */'http://localhost:3000?id=' + punishment._id);
                     }
                 });
-
-                
             });
         });
 
-    } else return res.status(400).send('Punishment ID isn\'t provided.')
+    } else return res.status(400).send('Punishment ID isn\'t provided.');
 });
 
 router.get('/random', (req, res) => {
 
     RandomPunishment.find({}, (err, punishments) => {
-        if (err) return res.status(500).send('There was a problem finding random punishments.')
+        if (err) return res.status(500).send('There was a problem finding random punishments.');
 
         res.json(punishments);
     });
@@ -93,7 +92,7 @@ router.get('/random', (req, res) => {
 router.get('/special', (req, res) => {
 
     SpecialPunishment.find({}, (err, punishments) => {
-        if (err) return res.status(500).send('There was a problem finding special punishments.')
+        if (err) return res.status(500).send('There was a problem finding special punishments.');
 
         res.json(punishments);
     });
@@ -128,7 +127,7 @@ router.get('/accepted', (req, res) => {
                 });
             } else return res.json({ errorMsg: 'No punishments.' });
         });
-    }
+    } else return res.status(400).send('Not authorized.');
 
 });
 
@@ -152,7 +151,7 @@ router.get('/past', (req, res) => {
                 });
             } else return res.json({ errorMsg: 'No punishments.' })
         });
-    }
+    } else return res.status(400).send('Not authorized.');
 });
 
 router.get('/ordered', (req, res) => {
@@ -174,8 +173,8 @@ router.get('/ordered', (req, res) => {
                     return res.json({ orderedPunishments: orderedPunishments });
                 });
             } else return res.json({ errorMsg: 'No punishments.' });
-        })
-    }
+        });
+    } else return res.status(400).send('Not authorized.');
 });
 
 router.post('/giveup', (req, res) => {
@@ -196,13 +195,13 @@ router.post('/giveup', (req, res) => {
 
             punishment.given_up = Date.now();
             punishment.save();
-            res.json('Your act of weakness is submited');
+            res.json('Your act of weakness is submited.');
 
             User.findById(punishment.fk_user_uid_ordering_punishment, (err, user) => {
                 if (user) sendNotification(req.body._id, user.email, punishment._id, constants.punishmentGivenUp);
             });
         });
-    }
+    } else return res.status(400).send('Not authorized.');
 });
 
 router.post('/log', (req, res) => {
@@ -298,7 +297,7 @@ router.post('/create', (req, res) => {
             User.findOne({ username: punishmentData.whomUsername }, (err, user) => {
                 if (err) return res.send({ errorMsg: 'Error on finding desired user' });
                 if (!user) {
-                    return res.json({ errorMsg: 'User does not exist.' })
+                    return res.json({ errorMsg: 'User does not exist.' });
                 } else if (user) {
                     // potrebno sejvat kaznu,
                     let newPunishment = new Punishment({
@@ -333,6 +332,7 @@ router.post('/create', (req, res) => {
                 if (!user) {
 
                     // USER NE POSTOJI, POSALJI REQUEST NA DANI MAIL TE NAPRAVI USERA (TODO)
+
                     let newUser = new User({
                         email: punishmentData.whomEmail,
                         invited_by: userOrderingPunishment._id
@@ -363,6 +363,13 @@ router.post('/create', (req, res) => {
                                 return;
                             }
                         });
+
+                        let newPref = new Pref({
+                            fk_user_uid: user._id
+                        });
+
+                        newPref.save();
+
                     }, err => {
                         console.log(err);
                         return res.json({ errorMsg: 'Server error. Try again.' });

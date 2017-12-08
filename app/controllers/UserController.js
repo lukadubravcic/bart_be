@@ -15,6 +15,7 @@ const Pref = require('../models/Pref');
 const Log = require('../models/Log');
 const LogEvent = require('../models/LogEvent');
 const Score = require('../models/Score');
+const Punishment = require('../models/Punishment');
 
 const EMAIL_MAX_LEN = 50;
 const EMAIL_MIN_LEN = 5;
@@ -45,6 +46,26 @@ router.get('/test', (req, res) => {
     testUser.save();
 });
 
+router.post('/guest', (req, res) => {
+    console.log(req.body);
+    User.findById(req.body.userId, (err, user) => {
+        if (err) return res.status(500).send('Server error.');
+        if (!user) return res.status(400).send('User does not exist.');
+
+        // provjera je je invited korisnik
+        if (user.username === 'null') return res.status(400).send('Invalid user.');
+
+        console.log(user)
+
+        Punishment.findById(req.body.punishmentId, (err, punishment) => {
+            if (err) return res.status(500).send('Server error.');
+            if (!punishment) return res.status(400).send('Punishment does not exist.');
+            if (punishment.fk_user_email_taking_punishment != user.email) return res.status(400).send('Invalid access.');
+
+            return res.json({ guestPunishment: punishment })
+        });
+    });
+});
 
 router.post('/login', (req, res) => {
 
@@ -157,7 +178,7 @@ router.post('/sregister', (req, res) => {
 
             Pref.findOne({ fk_user_uid: user._id }, (err, pref) => {
 
-                if (err) return res.json({ message: 'Server error' });
+                if (err) return res.json({ message: 'Server error.' });
 
                 let rank = 'unknown';
 
