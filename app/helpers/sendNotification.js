@@ -51,7 +51,7 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType, lo
                 getUserPreferences(receiver._id).then(pref => {
                     if (pref[notificationType]) {
 
-                        
+
                         notificationContent = createNotificationContent({
                             sender: sender,
                             receiver: receivingEmail,
@@ -86,7 +86,7 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType, lo
                     logId: logId,
                     newPwd: newPwd,
                 });
-                
+
                 if (notificationContent) {
                     sendEmail(receivingEmail, notificationType, notificationContent).then(
                         sent => {
@@ -123,7 +123,7 @@ function createNotificationContent(data) {
             return emailNotificationCreator.newPassword(data.newPwd, constants.APP_ADRRESS);
 
         case constants.punishmentRequested:
-            return emailNotificationCreator.punishment(data.punishment.why, APP_LINK + "/punishment/accept?id=" + data.punishment._id);
+            return emailNotificationCreator.punishment(data.punishment.why, APP_LINK + '/punishment/accept?id=' + data.punishment._id, APP_LINK + '/punishment/reject?id=' + data.punishment._id);
 
         case constants.punishmentAccepted:
             return emailNotificationCreator.accepted(data.punishment.why);
@@ -220,7 +220,7 @@ function sendEmail(receiverMail, notificationType, mailContent) {
 }
 
 function getResetPwdLink(logId) {
-    return constants.APP_ADRRESS + '/reset/' + logId;
+    return constants.APP_ADRRESS + 'users/reset/' + logId;
 }
 
 function getUserPreferences(userId) {

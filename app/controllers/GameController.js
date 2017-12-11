@@ -24,11 +24,6 @@ const constants = require('../config/constants');
 const BART_MAIL = constants.BART_MAIL;
 
 
-
-let scoreboard = [];
-
-
-
 router.use(bodyParser.urlencoded({ extended: true }));
 
 /* router.use((req, res, next) => {
@@ -52,7 +47,7 @@ router.get('/accept', (req, res) => {
             console.log(punishment)
             if (err) return res.status(500).send('There was a problem finding punishment.');
             if (!punishment) return res.status(400).send('Punishment with that ID does not exist.');
-            if (punishment.accepted) return res.status(400).send('Punishment already accepted.');
+            if (punishment.accepted || punishment.rejected) return res.status(400).send('Punishment marked as accepted/rejected');
 
             punishment.accepted = Date.now();
             punishment.save((err, punishment) => {
@@ -68,15 +63,46 @@ router.get('/accept', (req, res) => {
 
                     if (!user.username) { // specijalni slucaj, invited player
                         console.log(user);
-                        return res.redirect(/* constants.APP_ADRRESS */'http://localhost:3000?uid=' + user._id + '&id=' + punishment._id);
+                        res.redirect(/* constants.APP_ADRRESS */'http://localhost:3000?uid=' + user._id + '&id=' + punishment._id);
                     } else {
-                        return res.redirect(/* constants.APP_ADRRESS */'http://localhost:3000?id=' + punishment._id);
+                        res.redirect(/* constants.APP_ADRRESS */'http://localhost:3000?id=' + punishment._id);
                     }
+
+                    // posalji accepted mail
+                    sendNotification(punishment.fk_user_uid_ordering_punishment, punishment.fk_user_email_taking_punishment, punishment._id, constants.punishmentAccepted);
                 });
             });
         });
 
     } else return res.status(400).send('Punishment ID isn\'t provided.');
+});
+
+router.get('/reject', (req, res) => {
+
+    if (typeof req.query.id === 'undefined') return res.status(400).send('Missing data.');
+
+    Punishment.findById(req.query.id, (err, punishment) => {
+        if (err) return res.status(500).send('There was a problem finding punishment.');
+        if (!punishment) return res.status(400).send('Punishment with that ID does not exist.');
+        if (punishment.accepted || punishment.rejected) return res.status(400).send('Punishment marked as accepted/rejected');
+
+        punishment.rejected = Date.now();
+        punishment.save((err, punishment) => {
+            if (err) return res.status(500).send('There was a problem with setting punishment rejected.');
+
+            res.redirect(/* constants.APP_ADRRESS */ 'http://localhost:3000');
+
+            User.findOne({ email: punishment.fk_user_email_taking_punishment }, (err, sender) => {
+
+                User.findById(punishment.fk_user_uid_ordering_punishment, (err, receiver) => {
+
+                    sendNotification(sender._id, receiver.email, punishment._id, constants.punishmentRejected);
+                })
+
+            })
+
+        });
+    });
 });
 
 router.get('/random', (req, res) => {
@@ -102,6 +128,7 @@ router.get('/special', (req, res) => {
 router.get('/accepted', (req, res) => {
 
     if (req.user) {
+
         Punishment.find({
             fk_user_email_taking_punishment: req.user.email,
             accepted: { $exists: true, $ne: null },
@@ -110,11 +137,13 @@ router.get('/accepted', (req, res) => {
             rejected: null,
             done: null
         }, (err, punishments) => {
+
             if (err) console.log(err);
 
             else if (punishments && punishments.length > 0) {
 
-                acceptedPunishments = JSON.parse(JSON.stringify(filterAcceptedPunishments(punishments)));
+                let failedPunishments = [];
+                let acceptedPunishments = JSON.parse(JSON.stringify(filterAcceptedPunishments(punishments, failedPunishments)));
 
                 let ids = punishments.map(punishment => {
                     return punishment.fk_user_uid_ordering_punishment;
@@ -123,7 +152,12 @@ router.get('/accepted', (req, res) => {
                     for (punishment of acceptedPunishments) {
                         punishment.user_ordering_punishment = getUsernameFromPunishmentById(punishment.fk_user_uid_ordering_punishment, users);
                     }
-                    return res.status(200).json({ acceptedPunishments: acceptedPunishments });
+                    res.status(200).json({ acceptedPunishments: acceptedPunishments });
+
+                    // update failed punishments
+                    if (failedPunishments.length) {
+                        updateAndNotifyOnFailed(failedPunishments);
+                    }
                 });
             } else return res.json({ errorMsg: 'No punishments.' });
         });
@@ -183,22 +217,17 @@ router.post('/giveup', (req, res) => {
 
     if (req.user) {
         Punishment.findById(punishmentId, (err, punishment) => {
-            if (err) {
-                console.log(err)
-                return;
-            }
-            if (!punishment) {
-                return res.status(400).json('Punishment not found.');
-            }
+            if (err) return res.status(500).send('Server error.');
+            if (!punishment) return res.status(400).json('Punishment not found.');
 
-            if (punishment.fk_user_email_taking_punishment !== req.user.email) return res.status(400).json('This is not your punishment');
+            if (punishment.fk_user_email_taking_punishment !== req.user.email) return res.status(400).json('This is not your punishment.');
 
             punishment.given_up = Date.now();
             punishment.save();
             res.json('Your act of weakness is submited.');
 
             User.findById(punishment.fk_user_uid_ordering_punishment, (err, user) => {
-                if (user) sendNotification(req.body._id, user.email, punishment._id, constants.punishmentGivenUp);
+                if (user) sendNotification(req.user._id, user.email, punishment._id, constants.punishmentGivenUp);
             });
         });
     } else return res.status(400).send('Not authorized.');
@@ -210,9 +239,7 @@ router.post('/log', (req, res) => {
         Punishment.findById(req.body.id, (err, punishment) => {
 
             if (err) return res.status(500).json('There was a problem finding the punishment.');
-
             if (!punishment) return res.status(400).json('Punisment does not exist.');
-
             if (punishment.fk_user_email_taking_punishment !== req.user.email) return res.status(400).json('This is not your punishment');
 
             let newTry = new Try({
@@ -230,7 +257,7 @@ router.post('/log', (req, res) => {
                     res.status(200).json('Your try is logged.')
 
                     User.findById(punishment.fk_user_uid_ordering_punishment, (err, user) => {
-                        if (user) sendNotification(req.body._id, user.email, punishment._id, constants.notifyTrying);
+                        if (user) sendNotification(req.user._id, user.email, punishment._id, constants.notifyTrying);
                     });
 
                     return;
@@ -238,6 +265,47 @@ router.post('/log', (req, res) => {
             });
         });
 
+    } else return res.status(400).send('Not authorized.');
+});
+
+router.post('/guestLog', (req, res) => {
+    if (typeof req.body.userId !== 'undefined' && typeof req.body.punishmentId !== 'undefined' && typeof req.body.timeSpent !== 'undefined') {
+
+        User.findById(req.body.userId, (err, user) => {
+
+            if (err) return res.status(500).send('Server error.');
+            if (!user) return res.status(400).send('User does not exist.');
+
+            Punishment.findById(req.body.punishmentId, (err, punishment) => {
+
+                if (err) return res.status(500).json('There was a problem finding the punishment.');
+                if (!punishment) return res.status(400).json('Punisment does not exist.');
+                if (punishment.fk_user_email_taking_punishment !== user.email) return res.status(400).json('This is not your punishment');
+
+                let newTry = new Try({
+                    fk_punishment_uid: req.body.punishmentId,
+                    time_spent: req.body.timeSpent
+                });
+                // check here
+                newTry.save((err, result) => {
+                    if (err) return res.status(500).json('Error on saving try.');
+
+                    punishment.total_time_spent += parseInt(req.body.timeSpent);
+                    punishment.tries++;
+                    punishment.save((err, punishment) => {
+                        if (err) return res.status(500).json('Error on saving punishment try.');
+                        res.status(200).json('Your try is logged.')
+
+                        User.findById(punishment.fk_user_uid_ordering_punishment, (err, user) => {
+                            if (user) sendNotification(user._id, user.email, punishment._id, constants.notifyTrying);
+                        });
+
+                        return;
+                    });
+                });
+            });
+
+        });
     } else return res.status(400).send('Not authorized.');
 });
 
@@ -251,8 +319,9 @@ router.post('/done', (req, res) => {
             if (err) return res.status(500).json('There was a problem finding the punishment.');
             if (!punishment) return res.status(400).json('Punishment does not exist.')
             if (punishment.fk_user_email_taking_punishment !== req.user.email) return res.status(400).json('This is not your punishment.');
+            if (!checkIfDeadlineRespected(punishment.deadline)) return res.status(400).send('Cannot complete punishment whose deadline has passed.');
 
-            //punishment.done = Date.now();
+            punishment.done = Date.now();
             punishment.save((err, punishment) => {
                 if (err) return res.status(500).json('There was a problem saving the punishment.');
                 //res.status(200).json('Punishment saved.');
@@ -271,12 +340,58 @@ router.post('/done', (req, res) => {
                     });
                 });
 
-                /* User.findById(punishment.fk_user_uid_ordering_punishment, (err, user) => {
+                User.findById(punishment.fk_user_uid_ordering_punishment, (err, user) => {
                     console.log(user.email)
                     if (user) sendNotification(req.user._id, user.email, punishment._id, constants.notifyDone);
-                }); */
+                });
             });
         });
+    } else return res.status(400).send('Not authorized.');
+});
+
+router.post('/guestDone', (req, res) => {
+    // postavi kaznu kao done za goste (invited users) koji nosi logirani
+    if (typeof req.body.userId !== 'undefined' && typeof req.body.punishmentId !== 'undefined' && typeof req.body.timeSpent !== 'undefined') {
+
+        Punishment.findById(req.body.punishmentId, (err, punishment) => {
+            if (err) return res.status(500).json('There was a problem finding the punishment.');
+            if (!punishment) return res.status(400).json('Punishment does not exist.');
+            if (!checkIfDeadlineRespected(punishment.deadline)) return res.status(400).send('Cannot complete punishment whose deadline has passed.');
+
+            User.findById(req.body.userId, (err, user) => {
+
+                if (err) return res.status(500).send('Server error.');
+                if (!user) return res.status(400).send('User does not exist.');
+                if (punishment.fk_user_email_taking_punishment !== user.email) return res.status(400).json('This is not your punishment.');
+
+                punishment.done = Date.now();
+                punishment.save((err, punishment) => {
+                    if (err) return res.status(500).json('There was a problem saving the punishment.');
+                    // res.status(200).json('Punishment saved.');
+
+                    addToScoreboard(user, punishment, req.body.timeSpent).then(() => {
+                        Score.find().sort({ points: -1 }).then(scores => {
+
+                            let rank = null;
+
+                            scores.forEach((score, index) => {
+                                if (score.fk_user_id == user._id) rank = index + 1;
+                            });
+
+                            if (!rank) res.status(200).send('Punishment completed');
+                            else res.status(200).json({ rank: rank });
+                        });
+                    });
+
+                    User.findById(punishment.fk_user_uid_ordering_punishment, (err, user) => {
+                        console.log(user.email)
+                        if (user) sendNotification(req.user._id, user.email, punishment._id, constants.notifyDone);
+                    });
+
+                });
+            });
+        });
+
     } else return res.status(400).send('Not authorized.');
 });
 
@@ -486,9 +601,18 @@ function isPunishmentValid(punishment) {
     return true;
 }
 
+function checkIfDeadlineRespected(deadline) {
+
+    if (deadline === null) return true;
+
+    const deadlineTimestamp = new Date(parseInt(deadline)).getTime();
+    const nowTime = Date.now();
+
+    return deadlineTimestamp > nowTime;
+}
+
 
 function calcPunishmentScore(punishment, timeSpent) {
-
     const punishmentLen = punishment.what_to_write.length;
     const howManyTimes = punishment.how_many_times;
 
@@ -525,5 +649,14 @@ function addToScoreboard(user, punishment, timeSpent) {
     });
 };
 
+function updateAndNotifyOnFailed(failedPunishments) {
 
+    let failedPunishmentsIds = failedPunishments.map(punishment => (punishment._id));
+    console.log(failedPunishmentsIds);
 
+    Punishment.update({ _id: { $in: failedPunishmentsIds } }, { failed: Date.now() }, { multi: true }, (err, result) => {
+        failedPunishments.forEach(punishment => {
+            sendNotification();
+        });
+    });
+}

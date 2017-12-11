@@ -161,7 +161,7 @@ router.post('/register', (req, res) => {
     });
 });
 
-router.post('/sregister', (req, res) => {
+/* router.post('/sregister', (req, res) => {
 
     console.log(req.body)
 
@@ -212,7 +212,7 @@ router.post('/sregister', (req, res) => {
     });
 
     //return res.json({ message: 'TEST' });
-})
+}) */
 
 router.get('/', (req, res) => {
 
