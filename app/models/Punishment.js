@@ -44,11 +44,15 @@ const PunishmentSchema = new Schema({
         type: Date,
         default: null
     },
+    ignored: {
+        type: Date,
+        default: null
+    },
     total_time_spent: {
         type: Number,
         default: 0
     },
-})
+});
 
 mongoose.model('Punishment', PunishmentSchema);
 

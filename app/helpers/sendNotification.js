@@ -44,7 +44,7 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType, lo
             sender = queryData[0];
             punishment = queryData[1];
             receiver = queryData[2];
-            console.log
+
 
             if (inArray(notificationType, userPrefNotifications)) { // DONE, FAILED, TRYING
 
@@ -135,7 +135,6 @@ function createNotificationContent(data) {
             return emailNotificationCreator.ignored(data.punishment.why);
 
         case constants.notifyTrying:
-            console.log(data.sender)
             return emailNotificationCreator.trying(data.sender.username, data.punishment.why);
 
         case constants.notifyDone:
@@ -146,6 +145,9 @@ function createNotificationContent(data) {
 
         case constants.punishmentGivenUp:
             return emailNotificationCreator.givenUp(data.sender.username, data.punishment.why);
+
+        case constants.confirmAccount:
+            return emailNotificationCreator.confirmAccount(data.sender.username, APP_LINK + '/users/confirm?id=' + data.sender._id);
 
         default:
             return null;
@@ -187,6 +189,9 @@ function getMailSubject(notificationType) {
 
         case 'notify_failed':
             return 'Punishment failed';
+
+        case 'confirmAccount':
+            return 'Confirm your account'
 
         default:
             return null;

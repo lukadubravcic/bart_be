@@ -37,17 +37,44 @@ router.get('/insertingEvents', (req, res) => {
     } */
 });
 
-router.get('/test', (req, res) => {
-    let testUser = new User({
-        _id: '59ca467a9ecea810b9434345',
-        email: 'test3naproba@ththth.com',
-        hash_password: bcrypt.hashSync('123', 10)
+router.get('/confirm', (req, res) => {
+    console.log(req.query.id);
+    return res.status(200).send('OKAY');
+});
+
+router.post('/register', (req, res) => {
+
+    if (!validateRegister(req.body)) return res.json('Validation error.');
+
+    let newUser = new User(req.body);
+    newUser.hash_password = bcrypt.hashSync(req.body.password, 10);
+
+    newUser.save((err, user) => {
+        if (err) {
+            if (err.code === 11000) {
+                return res.json({ errMsg: 'User with that email exists.' });
+            }
+            return res.status(500).json({ message: 'Server error. Try again.' });
+
+        } else {
+            user.hash_password = undefined;
+            let newPref = new Pref();
+            newPref.fk_user_uid = user._id;
+            newPref.save((err, pref) => {
+                if (err) return res.json({ errMsg: 'There was a problem while creating new user.' });
+                res.json(user);
+            });
+
+            // premjestiti u /confirm
+            return sendNotification(req.body._id, user.email, 0, constants.signup);
+        }
     });
-    testUser.save();
 });
 
 router.post('/guest', (req, res) => {
+
     console.log(req.body);
+
     User.findById(req.body.userId, (err, user) => {
         if (err) return res.status(500).send('Server error.');
         if (!user) return res.status(400).send('User does not exist.');
@@ -80,6 +107,10 @@ router.post('/login', (req, res) => {
         } else if (user) {
             if (!user.comparePassword(req.body.password)) {
                 return res.json({ message: "Authentication failed. Wrong password." });
+
+            } if (typeof user.confirmed === 'undefined' || user.confirmed === null) {
+                return res.json({ message: 'Account needs to be confirmed. Check your email.' });
+
             } else {
                 Pref.findOne({ fk_user_uid: user._id }, (err, pref) => {
 
@@ -134,32 +165,6 @@ router.post('/logout', (req, res) => {
     });
 });
 
-router.post('/register', (req, res) => {
-
-    if (!validateRegister(req.body)) return res.json('Validation error.');
-
-    let newUser = new User(req.body);
-    newUser.hash_password = bcrypt.hashSync(req.body.password, 10);
-
-    newUser.save((err, user) => {
-        if (err) {
-            if (err.code === 11000) {
-                return res.json({ errMsg: 'User with that email exists.' });
-            }
-            return res.status(500).json({ message: 'Server error. Try again.' });
-
-        } else {
-            user.hash_password = undefined;
-            let newPref = new Pref();
-            newPref.fk_user_uid = user._id;
-            newPref.save((err, pref) => {
-                if (err) return res.json({ errMsg: 'There was a problem while creating new user.' });
-                res.json(user);
-            });
-            return sendNotification(req.body._id, user.email, 0, constants.signup);
-        }
-    });
-});
 
 /* router.post('/sregister', (req, res) => {
 

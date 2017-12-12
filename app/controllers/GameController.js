@@ -23,6 +23,8 @@ const Score = require('../models/Score');
 const constants = require('../config/constants');
 const BART_MAIL = constants.BART_MAIL;
 
+const IGNORED_LIMIT = (30 * 24 * 60 * 60 * 1000); // broj dana poslije kojih kazna postaje ignored (ako nije accepted)
+
 
 router.use(bodyParser.urlencoded({ extended: true }));
 
@@ -156,7 +158,7 @@ router.get('/accepted', (req, res) => {
 
                     // update failed punishments
                     if (failedPunishments.length) {
-                        updateAndNotifyOnFailed(failedPunishments);
+                        updateAndNotifyPunOwnersOnFailed(failedPunishments, req.user);
                     }
                 });
             } else return res.json({ errorMsg: 'No punishments.' });
@@ -178,10 +180,15 @@ router.get('/past', (req, res) => {
                 });
 
                 User.find({ _id: { $in: ids } }, (err, users) => {
+
                     for (punishment of pastPunishments) {
                         punishment.user_ordering_punishment = getUsernameFromPunishmentById(punishment.fk_user_uid_ordering_punishment, users);
                     }
-                    return res.json({ pastPunishments: pastPunishments });
+
+                    res.json({ pastPunishments: pastPunishments });
+
+                    // ako ima ignored kazni posalji mail
+                    if (pastPunishments.length) checkAndNotifyOnIgnoredPunishments(pastPunishments, req.user);
                 });
             } else return res.json({ errorMsg: 'No punishments.' })
         });
@@ -311,7 +318,6 @@ router.post('/guestLog', (req, res) => {
 
 router.post('/done', (req, res) => {
 
-    /* PROVJERITI JEL UNUTAR DEADLINE-a */
     console.log(req.body)
 
     if (req.user) {
@@ -350,7 +356,7 @@ router.post('/done', (req, res) => {
 });
 
 router.post('/guestDone', (req, res) => {
-    // postavi kaznu kao done za goste (invited users) koji nosi logirani
+    // postavi kaznu kao done za goste (invited users)
     if (typeof req.body.userId !== 'undefined' && typeof req.body.punishmentId !== 'undefined' && typeof req.body.timeSpent !== 'undefined') {
 
         Punishment.findById(req.body.punishmentId, (err, punishment) => {
@@ -398,14 +404,14 @@ router.post('/guestDone', (req, res) => {
 router.post('/create', (req, res) => {
     let punishmentData = req.body;
     let userOrderingPunishment = req.user;
-    console.log(punishmentData)
+    console.log(punishmentData);
 
     if (req.user) { // if user logged in
 
         if (!isPunishmentValid(punishmentData)) return res.json({ errorMsg: 'Punishment not valid. Try again.' });
 
-        punishmentData.whatToWrite = punishmentData.whatToWrite.trim();
-        punishmentData.why = punishmentData.why.trim();
+        punishmentData.whatToWrite = trimExcessSpaces(punishmentData.whatToWrite);
+        punishmentData.why = trimExcessSpaces(punishmentData.why);
         // ako je poslan username
         if (punishmentData.whomUsername && punishmentData.whatToWrite) {
 
@@ -423,6 +429,7 @@ router.post('/create', (req, res) => {
                         what_to_write: punishmentData.whatToWrite,
                         why: punishmentData.why
                     });
+                    
                     newPunishment.save((err, punishment) => {
                         if (err) {
                             return res.send({ errorMsg: 'Error on database entry' });
@@ -475,7 +482,6 @@ router.post('/create', (req, res) => {
                                 res.json(response);
 
                                 sendNotification(userOrderingPunishment._id, punishmentData.whomEmail, punishment._id, constants.punishmentRequested);
-                                return;
                             }
                         });
 
@@ -547,7 +553,7 @@ function getUsernameFromPunishmentByEmail(receivingUserEmail, users) {
     return null
 }
 
-function sendMail(from, to, subject, mailContent) {
+/* function sendMail(from, to, subject, mailContent) {
 
     sendmail({
         from: from,
@@ -559,15 +565,15 @@ function sendMail(from, to, subject, mailContent) {
         console.dir(reply);
     });
     res.json('mail sent');
-}
+} */
 
-function notifyUser(senderId, receiveingId, notificationType) {
+/* function notifyUser(senderId, receiveingId, notificationType) {
     Pref.findOne({ fk_user_id: senderId }, (err, pref) => {
         if (pref[notificationType]) {
             //posalji mail
         }
     })
-}
+} */
 
 function isPunishmentValid(punishment) {
 
@@ -649,14 +655,96 @@ function addToScoreboard(user, punishment, timeSpent) {
     });
 };
 
-function updateAndNotifyOnFailed(failedPunishments) {
+function updateAndNotifyPunOwnersOnFailed(failedPunishments, userTakingPunishments) {
 
-    let failedPunishmentsIds = failedPunishments.map(punishment => (punishment._id));
-    console.log(failedPunishmentsIds);
+    let failedPunishmentsIds = failedPunishments.map(punishment => punishment._id);
+    let failedPunishmentsOrderingIds = failedPunishments.map(punishment => punishment.fk_user_uid_ordering_punishment);
+
 
     Punishment.update({ _id: { $in: failedPunishmentsIds } }, { failed: Date.now() }, { multi: true }, (err, result) => {
-        failedPunishments.forEach(punishment => {
-            sendNotification();
+
+        User.find({ _id: { $in: failedPunishmentsOrderingIds } }, (err, users) => {
+
+            let punishmentOwner = null;
+
+            failedPunishments.forEach(punishment => {
+                punishmentOwner = getPunishmentOwner(punishment.fk_user_uid_ordering_punishment, users);
+                if (punishmentOwner) {
+                    sendNotification(userTakingPunishments._id, punishmentOwner.email, punishment._id, constants.notifyFailed);
+                }
+            });
         });
     });
+}
+
+
+function getPunishmentOwner(orderingUserId, users) {
+
+    let owner = null;
+
+    users.forEach(user => {
+        if ((user._id).toString() === orderingUserId) owner = user;
+    });
+
+    return owner;
+}
+
+
+function checkIfIgnoredPunishment(punishment) {
+
+    if (punishment.ignored) return false; // vec oznacen kao IGNORED 
+
+    let createdPlus30Days = (new Date(punishment.created).getTime()) + IGNORED_LIMIT;
+
+    if ((createdPlus30Days - Date.now() < 0) && (punishment.accepted === null)) return true // IGNORED
+
+    return false; // NOT IGNORED
+}
+
+
+function checkAndNotifyOnIgnoredPunishments(punishments, userTakingPunishments) {
+
+    let ignoredPunishments = [];
+    let ignoredPunishmentsIds = [];
+    let ignoredPunishmentsOrderingUsersIds = []; // id-jevi useri koji su zadali kaznu
+
+
+    punishments.forEach(punishment => {
+        if (checkIfIgnoredPunishment(punishment)) {
+            ignoredPunishmentsIds.push(punishment._id)
+            ignoredPunishments.push(punishment);
+            ignoredPunishmentsOrderingUsersIds.push(punishment.fk_user_uid_ordering_punishment);
+        }
+    });
+
+    // update ignoriranih 
+    Punishment.update({ _id: { $in: ignoredPunishmentsIds } }, { ignored: Date.now() }, { multi: true }, (err, result) => {
+
+        if (err) return;
+
+        User.find({ _id: { $in: ignoredPunishmentsOrderingUsersIds } }, (err, users) => {
+
+            if (err) return;
+
+            let punishmentOwner = null;
+
+            ignoredPunishments.forEach(punishment => {
+                // za svaku kaznu podalji mail
+                punishmentOwner = getPunishmentOwner(punishment.fk_user_uid_ordering_punishment, users);
+
+                if (punishmentOwner) {
+                    sendNotification(userTakingPunishments.id, punishmentOwner.email, punishment._id, constants.punishmentIgnored);
+                }
+            });
+        });
+    });
+}
+
+
+function trimExcessSpaces(whatToWrite) {
+
+    let trimmed = whatToWrite.replace(/\s+/g, ' ').trim();
+
+    return trimmed;
+
 }

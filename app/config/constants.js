@@ -14,4 +14,5 @@ module.exports = {
     notifyTrying: 'notify_trying',
     notifyDone: 'notify_done',
     notifyFailed: 'notify_failed',   
+    confirmAccount: 'confirm_account'
 }
