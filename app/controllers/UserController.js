@@ -39,7 +39,33 @@ router.get('/insertingEvents', (req, res) => {
 
 router.get('/confirm', (req, res) => {
     console.log(req.query.id);
-    return res.status(200).send('OKAY');
+
+    if (typeof req.query.id === 'undefined' || req.query.id === "") {
+        return res.status(400).send('Invalid request.');
+    }
+
+    User.findById(req.query.id, (err, user) => {
+
+        if (err) {
+            return res.status(500).send('Server error.');
+
+        } else if (!user) {
+            return res.status(400).send('User not found.');
+
+        } else if (typeof user.confirmed !== 'undefined' && user.confirmed !== null) {
+            return res.status(400).send('User already confirmed.');
+        }
+
+        user.confirmed = Date.now();
+
+        user.save((err, result) => {
+            if (err) return res.status(500).send('Server error.');
+
+            res.redirect(/* constants.APP_ADRRESS */ 'http://localhost:3000');
+
+            sendNotification(0, user.email, 0, constants.signup);
+        });
+    });
 });
 
 router.post('/register', (req, res) => {
@@ -51,6 +77,7 @@ router.post('/register', (req, res) => {
 
     newUser.save((err, user) => {
         if (err) {
+
             if (err.code === 11000) {
                 return res.json({ errMsg: 'User with that email exists.' });
             }
@@ -58,15 +85,17 @@ router.post('/register', (req, res) => {
 
         } else {
             user.hash_password = undefined;
+
             let newPref = new Pref();
             newPref.fk_user_uid = user._id;
+
             newPref.save((err, pref) => {
                 if (err) return res.json({ errMsg: 'There was a problem while creating new user.' });
-                res.json(user);
+
+                res.json({ message: 'Confirmation email has been sent to your email adress.' });
             });
 
-            // premjestiti u /confirm
-            return sendNotification(req.body._id, user.email, 0, constants.signup);
+            sendNotification(null, user.email, null, constants.confirmAccount);
         }
     });
 });
@@ -79,15 +108,14 @@ router.post('/guest', (req, res) => {
         if (err) return res.status(500).send('Server error.');
         if (!user) return res.status(400).send('User does not exist.');
 
-        // provjera je je invited korisnik
-        if (user.username === 'null') return res.status(400).send('Invalid user.');
-
-        console.log(user)
+        // provjera jel invited korisnik
+        if (typeof user.username !== 'undefined' && user.username !== null) return res.json({ msg: 'Invalid user.' });
 
         Punishment.findById(req.body.punishmentId, (err, punishment) => {
-            if (err) return res.status(500).send('Server error.');
-            if (!punishment) return res.status(400).send('Punishment does not exist.');
-            if (punishment.fk_user_email_taking_punishment != user.email) return res.status(400).send('Invalid access.');
+            if (err) return res.json({ msg: 'Server error.' });
+            if (!punishment) return res.json({ msg: 'Punishment does not exist.' });
+            if (punishment.fk_user_email_taking_punishment != user.email) return res.json({ msg: 'Invalid access.' });
+            if (typeof punishment.done !== 'undefined' && punishment.done !== null) return res.json({ msg: 'Accessing completed punishment.' });
 
             return res.json({ guestPunishment: punishment })
         });

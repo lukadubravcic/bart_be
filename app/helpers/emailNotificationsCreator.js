@@ -10,5 +10,5 @@ module.exports = {
     done: (username, punishmentDescription) => username + ' has completed punishment. ' + punishmentDescription,
     failed: (username, punishmentDescription) => username + ' has failed: "' + punishmentDescription + '".',
     givenUp: (username, punishmentDescription) => username + ' has given up completing punishment: "' + punishmentDescription + '".',
-    confirmAccount: (username, confirmLink) => 'Hello ' + username + '. Click on this <a href"' + link + '">LINK</a> to complete your registration.' 
+    confirmAccount: (username, confirmLink) => 'Hello ' + username + '. Click on this <a href="' + confirmLink + '">LINK</a> to complete your registration.' 
 };

@@ -45,7 +45,6 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType, lo
             punishment = queryData[1];
             receiver = queryData[2];
 
-
             if (inArray(notificationType, userPrefNotifications)) { // DONE, FAILED, TRYING
 
                 getUserPreferences(receiver._id).then(pref => {
@@ -80,7 +79,7 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType, lo
 
                 notificationContent = createNotificationContent({
                     sender: sender,
-                    receiver: receivingEmail,
+                    receiver: receiver,
                     punishment: punishment,
                     notificationType: notificationType,
                     logId: logId,
@@ -105,7 +104,7 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType, lo
             console.log('Promise query fail');
             resolve(false);
         });
-    }, err => { console.log(err) });
+    });
 }
 
 function createNotificationContent(data) {
@@ -135,10 +134,20 @@ function createNotificationContent(data) {
             return emailNotificationCreator.ignored(data.punishment.why);
 
         case constants.notifyTrying:
-            return emailNotificationCreator.trying(data.sender.username, data.punishment.why);
+            if (typeof data.sender.username !== 'undefined' && data.sender.username !== null) {
+                return emailNotificationCreator.trying(data.sender.username, data.punishment.why);
+
+            } else {
+                return emailNotificationCreator.trying(data.sender.email, data.punishment.why);
+            }
 
         case constants.notifyDone:
-            return emailNotificationCreator.done(data.sender.username, data.punishment.why);
+            if (typeof data.sender.username !== 'undefined' && data.sender.username !== null) {
+                return emailNotificationCreator.done(data.sender.username, data.punishment.why);
+
+            } else {
+                return emailNotificationCreator.done(data.sender.email, data.punishment.why);
+            }
 
         case constants.notifyFailed:
             return emailNotificationCreator.failed(data.sender.username, data.punishment.why);
@@ -147,7 +156,7 @@ function createNotificationContent(data) {
             return emailNotificationCreator.givenUp(data.sender.username, data.punishment.why);
 
         case constants.confirmAccount:
-            return emailNotificationCreator.confirmAccount(data.sender.username, APP_LINK + '/users/confirm?id=' + data.sender._id);
+            return emailNotificationCreator.confirmAccount(data.receiver.username, APP_LINK + '/users/confirm?id=' + data.receiver._id);
 
         default:
             return null;
@@ -157,41 +166,41 @@ function createNotificationContent(data) {
 function getMailSubject(notificationType) {
     switch (notificationType) {
 
-        case 'signup':
+        case constants.signup:
             return 'Signing up';
 
-        case 'password_reset_confirmation':
+        case constants.passwordResetConfirmation:
             return 'Confirmation for password reset';
 
-        case 'new_password':
+        case constants.newPassword:
             return 'New password';
 
-        case 'punishment_requested':
+        case constants.punishmentRequested:
             return 'New punishment';
 
-        case 'punishment_accepted':
+        case constants.punishmentAccepted:
             return 'Punishment accepted';
 
-        case 'punishment_rejected':
+        case constants.punishmentRejected:
             return 'Punishment rejected';
 
-        case 'punishment_ignored':
+        case constants.punishmentIgnored:
             return 'Punishment ignored';
 
-        case 'punishment_given_up':
+        case constants.punishmentGivenUp:
             return 'Punishment given up';
 
-        case 'notify_trying':
+        case constants.notifyTrying:
             return 'Punishment tried';
 
-        case 'notify_done':
+        case constants.notifyDone:
             return 'Punishment finished';
 
-        case 'notify_failed':
+        case constants.notifyFailed:
             return 'Punishment failed';
 
-        case 'confirmAccount':
-            return 'Confirm your account'
+        case constants.confirmAccount:
+            return 'Confirm your account';
 
         default:
             return null;
@@ -245,6 +254,7 @@ function getUserPreferences(userId) {
 
 function getUser(id) {
     return new Promise((resolve, reject) => {
+
         User.findById(id, (err, user) => {
             if (err) {
                 reject(err);
@@ -263,7 +273,6 @@ function getUserByMail(mail) {
     return new Promise((resolve, reject) => {
         User.findOne({ email: mail }, (err, user) => {
             if (err) {
-                console.log('TESTESTEDT')
                 reject(err);
                 return;
             } else if (!user) {
