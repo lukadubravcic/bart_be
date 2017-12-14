@@ -5,14 +5,14 @@ const Punishment = require('../models/Punishment');
 const Pref = require('../models/Pref');
 
 const sendmail = require('sendmail')({
-    /* silent: true, */
+    silent: true,
 
-    logger: {
+    /* logger: {
         debug: console.log,
         info: console.info,
         warn: console.warn,
         error: console.error
-    }
+    } */
 });
 
 const constants = require('../config/constants');

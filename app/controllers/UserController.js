@@ -38,7 +38,6 @@ router.get('/insertingEvents', (req, res) => {
 });
 
 router.get('/confirm', (req, res) => {
-    console.log(req.query.id);
 
     if (typeof req.query.id === 'undefined' || req.query.id === "") {
         return res.status(400).send('Invalid request.');
@@ -81,7 +80,7 @@ router.post('/register', (req, res) => {
             if (err.code === 11000) {
                 return res.json({ errMsg: 'User with that email exists.' });
             }
-            return res.status(500).json({ message: 'Server error. Try again.' });
+            return res.json({ message: 'Server error. Try again.' });
 
         } else {
             user.hash_password = undefined;
@@ -91,11 +90,12 @@ router.post('/register', (req, res) => {
 
             newPref.save((err, pref) => {
                 if (err) return res.json({ errMsg: 'There was a problem while creating new user.' });
-
-                res.json({ message: 'Confirmation email has been sent to your email adress.' });
             });
 
-            sendNotification(null, user.email, null, constants.confirmAccount);
+            sendNotification(null, user.email, null, constants.confirmAccount).then(mailSent => {
+                if (mailSent) return res.json({ message: 'Confirmation email has been sent to your email adress.' });
+                else return res.json({ errMsg: 'Mail was not delivered.' });
+            });
         }
     });
 });
@@ -109,7 +109,7 @@ router.post('/guest', (req, res) => {
         if (!user) return res.status(400).send('User does not exist.');
 
         // provjera jel invited korisnik
-        if (typeof user.username !== 'undefined' && user.username !== null) return res.json({ msg: 'Invalid user.' });
+        // if (typeof user.username !== 'undefined' && user.username !== null) return res.json({ msg: 'Invalid user.' });
 
         Punishment.findById(req.body.punishmentId, (err, punishment) => {
             if (err) return res.json({ msg: 'Server error.' });
@@ -124,7 +124,7 @@ router.post('/guest', (req, res) => {
 
 router.post('/login', (req, res) => {
 
-    if (!validateLogin(req.body)) return res.status(400).send('Validation error.')
+    if (!validateLogin(req.body)) return res.json({ message: 'Validation error.' })
 
     const loginEventId = appEvents.loginEvent.index;
 
@@ -254,7 +254,7 @@ router.get('/', (req, res) => {
             if (err) return res.status(500).send('Error fetching user data.');
             if (!user) return res.status(400).send("No user found.");
             else {
-                // posalji user data (napravljen je page refresh)
+                // posalji user data (napravljen je page refresh ili pristup stranici dok token jos postoji)
                 let rank = 'unknown';
 
                 Score.find().sort({ points: -1 }).then(scores => {
@@ -498,23 +498,27 @@ function validateRegister(registerData) {
 }
 
 function isMail(email) {
-    var re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    const re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(email);
 }
 
 function validUsername(username) {
-    if (username.length < USERNAME_MIN_LEN || username.length > PASSWORD_MAX_LEN) return false;
-    return true;
+    const usernameRegex = /^[a-zA-Z][a-zA-Z0-9-_\.]{8,20}$/;
+
+    if (usernameRegex.test(username)) { 
+        return true;
+    } else return 'Username needs to be 8 to 20 characters long.'
+    return usernameRegex.test(username);
 }
 
 function validEmail(email) {
-    if ((email.length < EMAIL_MIN_LEN || email.length > EMAIL_MAX_LEN) && !isMail(email)) return false;
+    if (!isMail(email)) return 'Not correct email format.';
     return true;
 }
 
-function validPassword(password) {
-    if (password.length < PASSWORD_MIN_LEN || password.length > PASSWORD_MAX_LEN) return false;
-    return true;
+function validPassword(password) { // 6 to 20 chars
+    const pwdRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,20}$/;
+    return pwdRegex.test(password);
 }
 
 function isPwdResetReqInvalid(log) {
