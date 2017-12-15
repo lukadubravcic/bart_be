@@ -69,34 +69,44 @@ router.get('/confirm', (req, res) => {
 
 router.post('/register', (req, res) => {
 
-    if (!validateRegister(req.body)) return res.json('Validation error.');
+    const validate = validateRegister(req.body);
 
-    let newUser = new User(req.body);
-    newUser.hash_password = bcrypt.hashSync(req.body.password, 10);
+    if (validate === false) return res.json({ errMsg: 'Invalid form data.' })
+    else if (validate !== true) return res.json({ errMsg: validate });
 
-    newUser.save((err, user) => {
-        if (err) {
+    // provjeri postoji li vec username ("manualna" provjera jel je dopustena vrijednost null -> potencijalno za vise usera)
+    User.findOne({ username: req.body.username }, (err, user) => {
+        if (err) return res.json({ errMsg: 'Server error. Try again.' });
+        console.log(user);
+        if (user && user.username !== '') return res.json({ errMsg: 'Username taken.' });
 
-            if (err.code === 11000) {
-                return res.json({ errMsg: 'User with that email exists.' });
+        let newUser = new User(req.body);
+        newUser.hash_password = bcrypt.hashSync(req.body.password, 10);
+
+        newUser.save((err, user) => {
+            if (err) {
+
+                if (err.code === 11000) {
+                    return res.json({ errMsg: 'User with that email exists.' });
+                }
+                return res.json({ errMsg: 'Server error. Try again.' });
+
+            } else {
+                user.hash_password = undefined;
+
+                let newPref = new Pref();
+                newPref.fk_user_uid = user._id;
+
+                newPref.save((err, pref) => {
+                    if (err) return res.json({ errMsg: 'There was a problem while creating new user.' });
+                });
+
+                sendNotification(null, user.email, null, constants.confirmAccount).then(mailSent => {
+                    if (mailSent) return res.json({ message: 'Confirmation email has been sent to your email address.' });
+                    else return res.json({ errMsg: 'Mail was not delivered.' });
+                });
             }
-            return res.json({ message: 'Server error. Try again.' });
-
-        } else {
-            user.hash_password = undefined;
-
-            let newPref = new Pref();
-            newPref.fk_user_uid = user._id;
-
-            newPref.save((err, pref) => {
-                if (err) return res.json({ errMsg: 'There was a problem while creating new user.' });
-            });
-
-            sendNotification(null, user.email, null, constants.confirmAccount).then(mailSent => {
-                if (mailSent) return res.json({ message: 'Confirmation email has been sent to your email adress.' });
-                else return res.json({ errMsg: 'Mail was not delivered.' });
-            });
-        }
+        });
     });
 });
 
@@ -117,61 +127,114 @@ router.post('/guest', (req, res) => {
             if (punishment.fk_user_email_taking_punishment != user.email) return res.json({ msg: 'Invalid access.' });
             if (typeof punishment.done !== 'undefined' && punishment.done !== null) return res.json({ msg: 'Accessing completed punishment.' });
 
-            return res.json({ guestPunishment: punishment })
+            return res.json({ guestPunishment: punishment });
         });
     });
 });
 
 router.post('/login', (req, res) => {
 
-    if (!validateLogin(req.body)) return res.json({ message: 'Validation error.' })
+    const validate = validateLogin(req.body);
+
+    // VALIDACIJA TEMP ISKLJUCENA
+    // if (validate !== true) return res.json({ message: validate });
 
     const loginEventId = appEvents.loginEvent.index;
 
-    User.findOne({ email: req.body.email }, (err, user) => {
-        if (err) return res.json({ message: "Server error" });
-        if (!user) {
-            return res.json({ message: "User not found." });
-        } else if (user) {
-            if (!user.comparePassword(req.body.password)) {
-                return res.json({ message: "Authentication failed. Wrong password." });
+    if (typeof req.body.email !== 'undefined') {
 
-            } if (typeof user.confirmed === 'undefined' || user.confirmed === null) {
-                return res.json({ message: 'Account needs to be confirmed. Check your email.' });
+        User.findOne({ email: req.body.email }, (err, user) => {
+            if (err) return res.json({ message: "Server error" });
+            if (!user) {
+                return res.json({ message: "User not found." });
+            } else if (user) {
+                if (!user.comparePassword(req.body.password)) {
+                    return res.json({ message: "Authentication failed. Wrong password." });
 
-            } else {
-                Pref.findOne({ fk_user_uid: user._id }, (err, pref) => {
+                } if (typeof user.confirmed === 'undefined' || user.confirmed === null) {
+                    return res.json({ message: 'Account needs to be confirmed. Check your email.' });
 
-                    if (err) return res.json({ message: 'Server error' });
+                } else {
+                    Pref.findOne({ fk_user_uid: user._id }, (err, pref) => {
 
-                    let rank = 'unknown';
+                        if (err) return res.json({ message: 'Server error' });
 
-                    Score.find().sort({ points: -1 }).then(scores => {
+                        let rank = 'unknown';
 
-                        scores.forEach((score, index) => {
-                            if (score.fk_user_id == user._id) rank = index + 1;
+                        Score.find().sort({ points: -1 }).then(scores => {
+
+                            scores.forEach((score, index) => {
+                                if (score.fk_user_id == user._id) rank = index + 1;
+                            });
+
+                            res.json({
+                                token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'),
+                                username: user.username,
+                                email: user.email,
+                                _id: user._id,
+                                prefs: pref,
+                                rank: rank
+                            });
+
+                            let loginLog = new Log({
+                                fk_user_id: user._id,
+                                fk_log_events_uid: loginEventId
+                            });
+
+                            loginLog.save();
                         });
-
-                        res.json({
-                            token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'),
-                            username: user.username,
-                            email: user.email,
-                            _id: user._id,
-                            prefs: pref,
-                            rank: rank
-                        });
-
-                        let loginLog = new Log({
-                            fk_user_id: user._id,
-                            fk_log_events_uid: loginEventId
-                        });
-
-                        loginLog.save();
                     });
-                });
+                }
             }
-        }
-    });
+        });
+
+    } else if (typeof req.body.username !== 'undefined') {
+
+        User.findOne({ username: req.body.username }, (err, user) => {
+            if (err) return res.json({ message: "Server error" });
+            if (!user) {
+                return res.json({ message: "User not found." });
+            } else if (user) {
+                if (!user.comparePassword(req.body.password)) {
+                    return res.json({ message: "Authentication failed. Wrong password." });
+
+                } if (typeof user.confirmed === 'undefined' || user.confirmed === null) {
+                    return res.json({ message: 'Account needs to be confirmed. Check your email.' });
+
+                } else {
+                    Pref.findOne({ fk_user_uid: user._id }, (err, pref) => {
+
+                        if (err) return res.json({ message: 'Server error' });
+
+                        let rank = 'unknown';
+
+                        Score.find().sort({ points: -1 }).then(scores => {
+
+                            scores.forEach((score, index) => {
+                                if (score.fk_user_id == user._id) rank = index + 1;
+                            });
+
+                            res.json({
+                                token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'),
+                                username: user.username,
+                                email: user.email,
+                                _id: user._id,
+                                prefs: pref,
+                                rank: rank
+                            });
+
+                            let loginLog = new Log({
+                                fk_user_id: user._id,
+                                fk_log_events_uid: loginEventId
+                            });
+
+                            loginLog.save();
+                        });
+                    });
+                }
+            }
+        });
+    } else return res.json({ message: 'Form data invalid.' });
 });
 
 router.post('/logout', (req, res) => {
@@ -263,12 +326,26 @@ router.get('/', (req, res) => {
                         if (score.fk_user_id == user._id) rank = index + 1;
                     });
 
-                    return res.json({
-                        _id: user._id,
-                        email: user.email,
-                        username: user.username,
-                        rank: rank
+                    Pref.findOne({ fk_user_uid: user._id }, (err, pref) => {
+                        if (pref) {
+                            return res.json({
+                                _id: user._id,
+                                email: user.email,
+                                username: user.username,
+                                rank: rank,
+                                pref: pref
+                            });
+                        } else {
+                            return res.json({
+                                _id: user._id,
+                                email: user.email,
+                                username: user.username,
+                                rank: rank
+                            });
+                        }
                     });
+
+
                 });
             }
         });
@@ -282,7 +359,7 @@ router.post('/username', (req, res) => {
 
     if (req.user && req.body.username) {
 
-        if (!validUsername(req.body.username)) return res.json(400, { errMsg: 'Username not valid.' });
+        if (!validateUsername(req.body.username)) return res.json(400, { errMsg: 'Username not valid.' });
 
         User.findOne({ username: req.body.username }, (err, user) => {
 
@@ -476,25 +553,65 @@ module.exports = router;
 
 
 function validateLogin(loginData) {
-    console.log(loginData)
-    // email
-    if (!validEmail(loginData.email)) return false;
-    //password
-    else if (!validPassword(loginData.password)) return false;
 
-    return true;
+    const loggedWithUsername = typeof loginData.username !== 'undefined' ? true : typeof loginData.email !== 'undefined' ? false : null;
+
+    let valMsg = '';
+    let usernameOrMailValid;
+
+
+    if (loggedWithUsername === null) {
+        usernameOrMailValid = false;
+
+    } else if (loggedWithUsername) {
+        usernameOrMailValid = validateUsername(loginData.username);
+
+    } else {
+        usernameOrMailValid = validateEmail(loginData.email);
+    }
+
+
+    let passwordValid = validatePassword(loginData.password);
+
+    if (usernameOrMailValid !== true) valMsg = valMsg + usernameOrMailValid;
+
+    if (passwordValid !== true) {
+        if (valMsg.length) valMsg = valMsg + " " + passwordValid;
+        else valMsg = valMsg + passwordValid;
+    }
+
+
+    if (valMsg !== '') return valMsg;
+    else return true;
 }
 
 function validateRegister(registerData) {
-
     console.log(registerData);
-    if (!validUsername(registerData.username)) return false;
 
-    else if (!validEmail(registerData.email)) return false;
+    if (typeof registerData.email === 'undefined' || typeof registerData.username === 'undefined' || typeof registerData.password === 'undefined') return false;
 
-    else if (!validPassword(registerData.password)) return false;
+    let valMsg = '';
 
-    return true;
+    let emailValid = validateEmail(registerData.email);
+    let usernameValid = typeof registerData.username !== 'undefined' && registerData.username !== '' ? validateUsername(registerData.username) : true;
+    let passwordValid = validatePassword(registerData.password);
+
+
+    if (emailValid !== true) valMsg = valMsg + emailValid;
+
+    if (usernameValid !== true) {
+        if (valMsg.length) valMsg = valMsg + " " + usernameValid;
+        else valMsg = valMsg + usernameValid;
+    }
+
+    if (passwordValid !== true) {
+        if (valMsg.length) valMsg = valMsg + " " + passwordValid;
+        else valMsg = valMsg + passwordValid;
+    }
+
+
+    if (valMsg !== '') return valMsg;
+    else return true;
 }
 
 function isMail(email) {
@@ -502,23 +619,27 @@ function isMail(email) {
     return re.test(email);
 }
 
-function validUsername(username) {
-    const usernameRegex = /^[a-zA-Z][a-zA-Z0-9-_\.]{8,20}$/;
+function validateUsername(username) { // Username must be between 8 and 20 characters, alphanumeric characters with underscores, periods and hyphens, space ne radi
+    const usernameRegex = /^[a-zA-Z][a-zA-Z0-9-_\.]{7,20}$/;
 
-    if (usernameRegex.test(username)) { 
+    if (usernameRegex.test(username)) {
         return true;
-    } else return 'Username needs to be 8 to 20 characters long.'
-    return usernameRegex.test(username);
+
+    } else return 'Username needs to be 8 to 20 characters long.';
 }
 
-function validEmail(email) {
-    if (!isMail(email)) return 'Not correct email format.';
+function validateEmail(email) {
+    if (!isMail(email)) return 'Invalid email format.';
     return true;
 }
 
-function validPassword(password) { // 6 to 20 chars
+function validatePassword(password) { // password between 6 to 20 characters which contain at least one numeric digit, one uppercase, and one lowercase letter
     const pwdRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,20}$/;
-    return pwdRegex.test(password);
+
+    if (pwdRegex.test(password)) {
+        return true;
+
+    } else return 'Password needs to be between 6 to 20 characters long, contain at least one numeric digit, one uppercase and one lowercase letter.';
 }
 
 function isPwdResetReqInvalid(log) {

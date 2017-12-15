@@ -5,39 +5,39 @@ const PrefSchema = new Schema({
     fk_user_uid: {
         type: String
     },
-    language:{
+    language: {
         type: String,
         default: 'EN'
     },
-    show_tooltips:{
+    show_tooltips: {
         type: Boolean,
         default: true
     },
-    notify_trying:{
+    notify_trying: {
         type: Boolean,
         default: false
     },
-    notify_done:{
-        type: Boolean, 
+    notify_done: {
+        type: Boolean,
         default: true
     },
-    notify_failed:{
+    notify_failed: {
         type: Boolean,
         default: false
     },
-    sound:{
+    sound: {
         type: Boolean,
         default: true
     },
-    wall_season:{
+    wall_season: {
         type: String,
         default: 'plain'
     },
-    classroom_wall:{
+    classroom_wall: {
         type: String,
         default: 'plain'
     },
-    classroom_board:{
+    classroom_board: {
         type: String,
         default: 'plain'
     }

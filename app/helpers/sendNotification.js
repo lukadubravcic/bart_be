@@ -5,14 +5,14 @@ const Punishment = require('../models/Punishment');
 const Pref = require('../models/Pref');
 
 const sendmail = require('sendmail')({
-    silent: true,
+    /* silent: true, */
 
-    /* logger: {
+    logger: {
         debug: console.log,
         info: console.info,
         warn: console.warn,
         error: console.error
-    } */
+    }
 });
 
 const constants = require('../config/constants');
@@ -156,7 +156,8 @@ function createNotificationContent(data) {
             return emailNotificationCreator.givenUp(data.sender.username, data.punishment.why);
 
         case constants.confirmAccount:
-            return emailNotificationCreator.confirmAccount(data.receiver.username, APP_LINK + '/users/confirm?id=' + data.receiver._id);
+            if (data.receiver.username === '') return emailNotificationCreator.confirmAccount('player', APP_LINK + '/users/confirm?id=' + data.receiver._id);
+            else return emailNotificationCreator.confirmAccount(data.receiver.username, APP_LINK + '/users/confirm?id=' + data.receiver._id);
 
         default:
             return null;

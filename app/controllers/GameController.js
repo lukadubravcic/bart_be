@@ -247,7 +247,7 @@ router.post('/giveup', (req, res) => {
 router.post('/log', (req, res) => {
     console.log('LOG');
     console.log(req.body);
-    
+
     if (req.user) {
         Punishment.findById(req.body.id, (err, punishment) => {
 
@@ -337,7 +337,7 @@ router.post('/done', (req, res) => {
             if (punishment.fk_user_email_taking_punishment !== req.user.email) return res.status(400).json('This is not your punishment.');
             if (!checkIfDeadlineRespected(punishment.deadline)) return res.status(400).send('Cannot complete punishment whose deadline has passed.');
 
-            punishment.done = Date.now();
+            //punishment.done = Date.now();
             punishment.tries++;
             punishment.save((err, punishment) => {
                 if (err) return res.status(500).json('There was a problem saving the punishment.');
@@ -642,7 +642,7 @@ function addToScoreboard(user, punishment, timeSpent) {
 
     return new Promise((resolve, reject) => {
         const punishmentScore = calcPunishmentScore(punishment, timeSpent);
-
+        console.log("punishmentScore: " + punishmentScore)
         // Provjera ako entry vec postoji 
 
         Score.findOne({ fk_user_id: user._id }, (err, score) => {
