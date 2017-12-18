@@ -127,7 +127,7 @@ router.post('/guest', (req, res) => {
             if (punishment.fk_user_email_taking_punishment != user.email) return res.json({ msg: 'Invalid access.' });
             if (typeof punishment.done !== 'undefined' && punishment.done !== null) return res.json({ msg: 'Accessing completed punishment.' });
 
-            return res.json({ guestPunishment: punishment });
+            return res.json({ guestPunishment: punishment, guestUser: { email: user.email, username: user.username } });
         });
     });
 });
@@ -257,59 +257,6 @@ router.post('/logout', (req, res) => {
 });
 
 
-/* router.post('/sregister', (req, res) => {
-
-    console.log(req.body)
-
-    if (typeof req.body.userID === 'undefined') return res.status(400).json('Missing data.');
-
-    User.findById(req.body.userID, (err, user) => {
-        if (err) return res.json({ message: 'Error fetching user data.' });
-        if (!user) return res.json({ message: 'User does not exist.' });
-        if (typeof user.hash_password !== 'undefined') return res.json({ message: 'Accessing wrong user.' });
-
-        user.hash_password = bcrypt.hashSync(req.body.password, 10);
-
-        user.save().then(user => {
-
-            Pref.findOne({ fk_user_uid: user._id }, (err, pref) => {
-
-                if (err) return res.json({ message: 'Server error.' });
-
-                let rank = 'unknown';
-
-                Score.find().sort({ points: -1 }).then(scores => {
-
-                    scores.forEach((score, index) => {
-                        if (score.fk_user_id == user._id) rank = index + 1;
-                    });
-
-                    res.json({
-                        token: jwt.sign({ email: user.email, username: user.username, _id: user.id }, 'salty'),
-                        username: user.username,
-                        email: user.email,
-                        _id: user._id,
-                        prefs: pref,
-                        rank: rank
-                    });
-
-                    let loginLog = new Log({
-                        fk_user_id: user._id,
-                        fk_log_events_uid: loginEventId
-                    });
-
-                    loginLog.save();
-                });
-            });
-
-        }, err => {
-            return res.json({ message: 'Server error. Try again.' });
-        });
-    });
-
-    //return res.json({ message: 'TEST' });
-}) */
-
 router.get('/', (req, res) => {
 
     if (req.user) {
@@ -359,7 +306,9 @@ router.post('/username', (req, res) => {
 
     if (req.user && req.body.username) {
 
-        if (!validateUsername(req.body.username)) return res.json(400, { errMsg: 'Username not valid.' });
+        const validate = validateUsername(req.body.username);
+
+        if (validate !== true) return res.json({ errMsg: validate });
 
         User.findOne({ username: req.body.username }, (err, user) => {
 
@@ -382,6 +331,51 @@ router.post('/username', (req, res) => {
 
                     user.save((err, result) => {
                         if (err) return res.json({ errMsg: 'Error on saving username.' });
+                        return res.send({
+                            _id: user._id,
+                            email: user.email,
+                            username: user.username
+                        });
+                    });
+                }
+            });
+        });
+    } else {
+        res.status(400).json('Unauthorized access.');
+    }
+});
+
+router.post('/guestUsername', (req, res) => {
+
+    if (req.body.username && req.body.email) {
+
+        const validate = validateUsername(req.body.username);
+
+        if (validate !== true) return res.json({ errMsg: validate });
+
+        User.findOne({ username: req.body.username }, (err, user) => {
+
+            if (err) return res.json({ errMsg: 'There was a problem finding the user.' });
+            if (user) {
+                // user postoji
+                return res.json({ errMsg: 'Username taken.' });
+            }
+            // user doesnt exist (username not taken)
+            User.findOne({ email: req.body.email }, (err, user) => {
+
+                if (err) return res.json({ errMsg: 'There was a problem finding the user.' });
+                if (!user) return res.json({ errMsg: 'No user found' });
+
+                if (user.username) return res.json({ errMsg: 'Cannot update user with existing username.' });
+
+                else if (!user.username) {
+
+                    user.username = req.body.username;
+
+                    user.save((err, result) => {
+
+                        if (err) return res.json({ errMsg: 'Error on saving username.' });
+
                         return res.send({
                             _id: user._id,
                             email: user.email,
@@ -620,12 +614,12 @@ function isMail(email) {
 }
 
 function validateUsername(username) { // Username must be between 8 and 20 characters, alphanumeric characters with underscores, periods and hyphens, space ne radi
-    const usernameRegex = /^[a-zA-Z][a-zA-Z0-9-_\.]{7,20}$/;
+    const usernameRegex = /^[a-zA-Z][a-zA-Z0-9-_\.]{2,20}$/;
 
     if (usernameRegex.test(username)) {
         return true;
 
-    } else return 'Username needs to be 8 to 20 characters long.';
+    } else return 'Username needs to be 3 to 20 characters long.';
 }
 
 function validateEmail(email) {

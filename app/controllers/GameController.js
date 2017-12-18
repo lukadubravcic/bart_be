@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bodyParser = require('body-parser');
+const bcrypt = require('bcrypt');
 const sendmail = require('sendmail')({
     logger: {
         debug: console.log,
@@ -62,15 +63,22 @@ router.get('/accept', (req, res) => {
                     if (err) return res.status(500).send('Server error. Try again.');
                     if (!user) return res.status(500).send('Could not find user. Try again.');
 
+                    if (user.confirmed === null) {
+
+                        const newPwd = Math.random().toString(36).substr(2, 8);
+
+                        user.confirmed = Date.now();
+                        user.hash_password = bcrypt.hashSync(newPwd, 10);
+
+                        user.save().then(() => {
+                            sendNotification(0, user.email, 0, constants.newPassword, 0, newPwd);
+                        });
+                    }
+
+
                     // REDIREKT NA RUTU GDJE SE POSLUZUJE APP (nevazno jel user "punokrvni" ili ne posalji podatke o kazni)
 
                     res.redirect(/* constants.APP_ADRRESS */'http://localhost:3000?uid=' + user._id + '&id=' + punishment._id);
-
-                    // if (!user.username) { // specijalni slucaj, invited player
-                    //     res.redirect(/* constants.APP_ADRRESS */'http://localhost:3000?uid=' + user._id + '&id=' + punishment._id);
-                    // } else {
-                    //     res.redirect(/* constants.APP_ADRRESS */'http://localhost:3000?id=' + punishment._id);
-                    // }
 
                     // posalji accepted mail
                     sendNotification(punishment.fk_user_uid_ordering_punishment, punishment.fk_user_email_taking_punishment, punishment._id, constants.punishmentAccepted);
@@ -468,11 +476,11 @@ router.post('/create', (req, res) => {
 
                     let newUser = new User({
                         email: punishmentData.whomEmail,
-                        invited_by: userOrderingPunishment._id,
-                        confirmed: Date.now()
+                        invited_by: userOrderingPunishment._id
                     });
 
                     newUser.save().then(user => {
+
 
                         let newPunishment = new Punishment({
                             fk_user_uid_ordering_punishment: userOrderingPunishment._id,
@@ -482,6 +490,8 @@ router.post('/create', (req, res) => {
                             what_to_write: punishmentData.whatToWrite,
                             why: punishmentData.why
                         });
+
+
 
                         newPunishment.save((err, punishment) => {
                             if (err) {
@@ -565,28 +575,6 @@ function getUsernameFromPunishmentByEmail(receivingUserEmail, users) {
     }
     return null
 }
-
-/* function sendMail(from, to, subject, mailContent) {
-
-    sendmail({
-        from: from,
-        to: to,
-        subject: subject,
-        text: mailContent,
-    }, function (err, reply) {
-        console.log(err && err.stack);
-        console.dir(reply);
-    });
-    res.json('mail sent');
-} */
-
-/* function notifyUser(senderId, receiveingId, notificationType) {
-    Pref.findOne({ fk_user_id: senderId }, (err, pref) => {
-        if (pref[notificationType]) {
-            //posalji mail
-        }
-    })
-} */
 
 function isPunishmentValid(punishment) {
 
