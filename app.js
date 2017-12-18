@@ -5,6 +5,9 @@ const User = require('./app/models/User'),
 const express = require('express');
 const app = express();
 const db = require('./app/config/db');
+const path = require('path');
+
+var fs = require('fs');
 
 const UserController = require('./app/controllers/UserController');
 const GameController = require('./app/controllers/GameController');
@@ -13,6 +16,8 @@ const PrefController = require('./app/controllers/PrefController');
 const SALT = 'salty';
 
 app.use(cors());
+
+app.use(express.static(path.join(__dirname, '/app/client/build')));
 
 app.use((req, res, next) => {
     if (req.headers && req.headers.authorization && req.headers.authorization.split(' ')[0] === 'JWT') {
@@ -32,10 +37,16 @@ app.use('/users', UserController);
 app.use('/punishment', GameController);
 
 app.use('/prefs', PrefController);
-// http://expressjs.com/en/guide/using-middleware.html - dodati da se prije izvrsavanja određenih ruta provjeri login status:
-/* loginRequired = (req, res, next) =>{
-    if (req.user) next();
-    else return res.status(401).json({message: 'Unauthorized user.'});
-}; */
+
+app.get('/test', (req, res) => {
+    res.send('jadwjdwajdas');
+});
+
+app.get('*', (req, res) => {
+    console.log('TUTUTTUUTUTU')
+    res.sendFile(path.join(__dirname + '/app/client/build/index.html'));
+});
+
+
 module.exports = app;
 
