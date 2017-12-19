@@ -5,14 +5,14 @@ const Punishment = require('../models/Punishment');
 const Pref = require('../models/Pref');
 
 const sendmail = require('sendmail')({
-    /* silent: true, */
+    silent: true
 
-    logger: {
+    /* logger: {
         debug: console.log,
         info: console.info,
         warn: console.warn,
         error: console.error
-    }
+    } */
 });
 
 const constants = require('../config/constants');
@@ -72,8 +72,8 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType, lo
                         );
                     }
                 }, err => {
-                    console.log('err: get user prefs')
-                    console.log(err)
+                    
+                    
                 });
             } else { // ostale notifikacije
 
@@ -101,7 +101,6 @@ const notifyUser = (senderId, receivingEmail, punishmentId, notificationType, lo
 
         }, err => {
             // failano dohvacanje podataka
-            console.log('Promise query fail');
             resolve(false);
         });
     });
@@ -215,12 +214,12 @@ function sendEmail(receiverMail, notificationType, mailContent) {
         let to = receiverMail;
         let subject = getMailSubject(notificationType);
 
-        console.log('----------------------------------------------------------------------------');
+       /*  console.log('----------------------------------------------------------------------------');
         console.log(`Mail from: ${from}`);
         console.log(`Mail to: ${receiverMail}`);
         console.log(`Mail subject: ${subject}`);
         console.log('Content: \n\n' + mailContent + '\n')
-        console.log('----------------------------------------------------------------------------');
+        console.log('----------------------------------------------------------------------------'); */
 
         sendmail({
             from: from,

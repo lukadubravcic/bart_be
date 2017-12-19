@@ -26,16 +26,6 @@ const USERNAME_MIN_LEN = 4;
 
 const PASSWORD_RESET_WAITTIME = 10 * 60 * 1000; // 10 Minutes
 
-// DEV ONLY
-router.get('/insertingEvents', (req, res) => {
-    /* for (event in appEvents) {
-        let ev = new LogEvent({
-            _id: parseInt(appEvents[event].index),
-            description: appEvents[event].description
-        });
-        ev.save();
-    } */
-});
 
 router.get('/confirm', (req, res) => {
 
@@ -77,7 +67,6 @@ router.post('/register', (req, res) => {
     // provjeri postoji li vec username ("manualna" provjera jel je dopustena vrijednost null -> potencijalno za vise usera)
     User.findOne({ username: req.body.username }, (err, user) => {
         if (err) return res.json({ errMsg: 'Server error. Try again.' });
-        console.log(user);
         if (user && user.username !== '') return res.json({ errMsg: 'Username taken.' });
 
         let newUser = new User(req.body);
@@ -111,8 +100,6 @@ router.post('/register', (req, res) => {
 });
 
 router.post('/guest', (req, res) => {
-
-    console.log(req.body);
 
     User.findById(req.body.userId, (err, user) => {
         if (err) return res.status(500).send('Server error.');
@@ -291,8 +278,6 @@ router.get('/', (req, res) => {
                             });
                         }
                     });
-
-
                 });
             }
         });
@@ -448,7 +433,7 @@ router.post('/forgot', (req, res) => {
 
                 sendNotification(0, user.email, 0, constants.passwordResetConfirmation, result._id).then((isMailSent) => {
 
-                    console.log(`\nMail sent: ${isMailSent}\n`);
+                    // console.log(`\nMail sent: ${isMailSent}\n`);
 
                     if (isMailSent) {
                         return res.json({ message: 'Temporary password is sent to your email.' });
@@ -459,7 +444,7 @@ router.post('/forgot', (req, res) => {
                         return res.json({ message: 'Error on sending mail. Try again.' });
                     }
 
-                }, (rejected) => {
+                }, rejected => {
                     return res.json({ message: 'Server error. Try again.' });
                 });
             });
@@ -518,31 +503,6 @@ router.get('/reset/:logId', (req, res) => {
 });
 
 
-/* router.get('/:id', (req, res) => {
-
-    User.findById(req.params.id, (err, user) => {
-        if (err) return res.status(500).send("There was a problem finding the user.");
-        if (!user) return res.status(404).send("No user found.");
-        res.status(200).send(user);
-    });
-});
-
-router.delete('/:id', (req, res) => {
-
-    User.findByIdAndRemove(req.params.id, (err, user) => {
-        if (err) return res.status(500).send("There was a problem finding the user.");
-        res.status(200).send("User " + user.name + " was deleted");
-    });
-});
-
-router.put('/:id', (req, res) => {
-
-    User.findByIdAndUpdate(req.params.id, req.body, { new: true }, (err, user) => {
-        if (err) return res.status(500).send("There was a problem updating the user.");
-        res.status(200).send(user);
-    });
-}); */
-
 module.exports = router;
 
 
@@ -574,13 +534,11 @@ function validateLogin(loginData) {
         else valMsg = valMsg + passwordValid;
     }
 
-
     if (valMsg !== '') return valMsg;
     else return true;
 }
 
 function validateRegister(registerData) {
-    console.log(registerData);
 
     if (typeof registerData.email === 'undefined' || typeof registerData.username === 'undefined' || typeof registerData.password === 'undefined') return false;
 

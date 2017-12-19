@@ -2,14 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
-const sendmail = require('sendmail')({
-    logger: {
-        debug: console.log,
-        info: console.info,
-        warn: console.warn,
-        error: console.error
-    }
-});
+
 const sendNotification = require('../helpers/sendNotification');
 const filterAcceptedPunishments = require('../helpers/filterAcceptedPunishments');
 const validPunishmentWhatToWriteKeys = require('../helpers/validPunishmentChars');
@@ -29,19 +22,6 @@ const IGNORED_LIMIT = (30 * 24 * 60 * 60 * 1000); // broj dana poslije kojih kaz
 
 router.use(bodyParser.urlencoded({ extended: true }));
 
-/* router.use((req, res, next) => {
-    console.log(req.user)
-    next();
-}); */
-
-/* router.get('/test', (req, res) => {
-    sendmail({
-        from: constants.BART_MAIL,
-        to: 'ldubravcic@kreativni.hr',
-        subject: 'test slanja na kreativni mail server',
-        html: 'Hello Luka',
-    });
-}); */
 
 router.get('/accept', (req, res) => {
 
@@ -75,7 +55,6 @@ router.get('/accept', (req, res) => {
                         });
                     }
 
-
                     // REDIREKT NA RUTU GDJE SE POSLUZUJE APP (nevazno jel user "punokrvni" ili ne posalji podatke o kazni)
 
                     res.redirect(/* constants.APP_ADRRESS */'http://localhost:3000?uid=' + user._id + '&id=' + punishment._id);
@@ -91,8 +70,6 @@ router.get('/accept', (req, res) => {
 
 router.get('/reject', (req, res) => {
 
-    // prvo provjerit jel 
-
     if (typeof req.query.id === 'undefined') return res.status(400).send('Missing data.');
 
     Punishment.findById(req.query.id, (err, punishment) => {
@@ -102,6 +79,7 @@ router.get('/reject', (req, res) => {
 
         punishment.rejected = Date.now();
         punishment.save((err, punishment) => {
+
             if (err) return res.status(500).send('There was a problem with setting punishment rejected.');
 
             res.redirect(/* constants.APP_ADRRESS */ 'http://localhost:3000');
@@ -111,10 +89,8 @@ router.get('/reject', (req, res) => {
                 User.findById(punishment.fk_user_uid_ordering_punishment, (err, receiver) => {
 
                     sendNotification(sender._id, receiver.email, punishment._id, constants.punishmentRejected);
-                })
-
-            })
-
+                });
+            });
         });
     });
 });
@@ -253,8 +229,6 @@ router.post('/giveup', (req, res) => {
 });
 
 router.post('/log', (req, res) => {
-    console.log('LOG');
-    console.log(req.body);
 
     if (req.user) {
         Punishment.findById(req.body.id, (err, punishment) => {
@@ -289,9 +263,6 @@ router.post('/log', (req, res) => {
 });
 
 router.post('/guestLog', (req, res) => {
-
-    console.log('GUEST LOG');
-    console.log(req.body);
 
     if (typeof req.body.userId !== 'undefined' && typeof req.body.punishmentId !== 'undefined' && typeof req.body.timeSpent !== 'undefined') {
 
@@ -336,8 +307,6 @@ router.post('/guestLog', (req, res) => {
 
 router.post('/done', (req, res) => {
 
-    console.log(req.body)
-
     if (req.user) {
         Punishment.findById(req.body.id, (err, punishment) => {
             if (err) return res.status(500).json('There was a problem finding the punishment.');
@@ -345,7 +314,7 @@ router.post('/done', (req, res) => {
             if (punishment.fk_user_email_taking_punishment !== req.user.email) return res.status(400).json('This is not your punishment.');
             if (!checkIfDeadlineRespected(punishment.deadline)) return res.status(400).send('Cannot complete punishment whose deadline has passed.');
 
-            //punishment.done = Date.now();
+            //punishment.done = Date.now(); 
             punishment.tries++;
             punishment.save((err, punishment) => {
                 if (err) return res.status(500).json('There was a problem saving the punishment.');
@@ -423,7 +392,6 @@ router.post('/guestDone', (req, res) => {
 router.post('/create', (req, res) => {
     let punishmentData = req.body;
     let userOrderingPunishment = req.user;
-    console.log(punishmentData);
 
     if (req.user) { // if user logged in
 
