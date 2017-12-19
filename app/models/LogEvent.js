@@ -10,6 +10,6 @@ const LogEventSchema = new Schema({
     }
 }, { _id: false });
 
-mongoose.model('LogEvent', LogEventSchema)
+mongoose.model('LogEvent', LogEventSchema);
 
 module.exports = mongoose.model('LogEvent');
